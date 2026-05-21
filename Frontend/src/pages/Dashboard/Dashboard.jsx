@@ -35,7 +35,7 @@ const Dashboard = () => {
         </div>
         <div className="date-picker">
           <CalendarCheck size={18} color="#64748B" />
-          <span>May 21, 2025</span>
+          <span>May 21, 2026</span>
         </div>
       </div>
 
