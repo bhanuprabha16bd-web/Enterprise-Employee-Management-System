@@ -1,29 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Users, UserCheck, CalendarCheck, Building2, TrendingUp, MoreHorizontal } from 'lucide-react';
 import './Dashboard.css';
+import { employeeService } from '../../services/employeeService';
 
 const Dashboard = () => {
   const [recentEmployees, setRecentEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('https://jsonplaceholder.typicode.com/users')
-      .then(res => res.json())
-      .then(data => {
-        
-        const formatted = data.map(user => ({
+    const fetchRecent = async () => {
+      try {
+        setLoading(true);
+        const data = await employeeService.getEmployees();
+        const formatted = data.slice(0, 5).map(user => ({
           name: user.name,
-          role: `@${user.username}`, 
-          dept: user.company.name, 
-          date: 'May 21, 2025'
+          role: user.role, 
+          dept: user.department, 
+          date: user.joinDate
         }));
         setRecentEmployees(formatted);
+      } catch (err) {
+        console.error('Error fetching dashboard employees:', err);
+      } finally {
         setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
+      }
+    };
+    
+    fetchRecent();
   }, []);
 
   return (
@@ -116,7 +119,20 @@ const Dashboard = () => {
           </div>
           <div className="recent-list">
             {loading ? (
-              <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Loading employees...</p>
+              [...Array(5)].map((_, index) => (
+                <div className="recent-item" key={`skel-${index}`}>
+                  <div className="recent-user-info">
+                    <div className="skeleton skeleton-avatar" style={{ width: '40px', height: '40px' }}></div>
+                    <div>
+                      <div className="skeleton skeleton-text" style={{ width: '100px', marginBottom: '8px' }}></div>
+                      <div className="skeleton skeleton-text" style={{ width: '80px' }}></div>
+                    </div>
+                  </div>
+                  <div className="skeleton skeleton-text" style={{ width: '80px' }}></div>
+                  <div className="skeleton skeleton-text" style={{ width: '80px' }}></div>
+                  <div className="skeleton skeleton-icon"></div>
+                </div>
+              ))
             ) : recentEmployees.map((emp, index) => (
               <div className="recent-item" key={index}>
                 <div className="recent-user-info">

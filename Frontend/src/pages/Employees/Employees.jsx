@@ -18,6 +18,7 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import './Employees.css';
+import { employeeService } from '../../services/employeeService';
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
@@ -29,32 +30,19 @@ const Employees = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
 
   useEffect(() => {
-    fetch('https://jsonplaceholder.typicode.com/users')
-      .then(response => response.json())
-      .then(data => {
-        const departments = ['Engineering', 'Design', 'Human Resources', 'Product', 'Data', 'Marketing'];
-        const roles = ['Frontend Developer', 'UI/UX Designer', 'HR Manager', 'Product Manager', 'Data Scientist', 'Marketing Specialist'];
-        const statuses = ['Active', 'On Leave', 'Inactive'];
-        
-        const formattedData = data.map(user => ({
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: roles[user.id % roles.length],
-          department: departments[user.id % departments.length],
-          status: statuses[user.id % statuses.length],
-          joinDate: '2023-01-15',
-          avatar: `https://i.pravatar.cc/150?u=${user.id}`,
-          phone: user.phone,
-          location: `${user.address.city}, ${user.address.zipcode}`
-        }));
-        setEmployees(formattedData);
-        setLoading(false);
-      })
-      .catch(error => {
+    const fetchEmployees = async () => {
+      try {
+        setLoading(true);
+        const data = await employeeService.getEmployees();
+        setEmployees(data);
+      } catch (error) {
         console.error('Error fetching employees:', error);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    
+    fetchEmployees();
   }, []);
 
   
@@ -190,11 +178,23 @@ const Employees = () => {
                   </tr>
                 ))}
                 {loading ? (
-                  <tr>
-                    <td colSpan="5" className="empty-state">
-                      Loading employees...
-                    </td>
-                  </tr>
+                  [...Array(5)].map((_, index) => (
+                    <tr key={`skeleton-${index}`} className="skeleton-row">
+                      <td>
+                        <div className="emp-cell-user">
+                          <div className="skeleton skeleton-avatar"></div>
+                          <div>
+                            <div className="skeleton skeleton-text" style={{ width: '120px', marginBottom: '8px' }}></div>
+                            <div className="skeleton skeleton-text" style={{ width: '150px' }}></div>
+                          </div>
+                        </div>
+                      </td>
+                      <td><div className="skeleton skeleton-text" style={{ width: '100px' }}></div></td>
+                      <td><div className="skeleton skeleton-text" style={{ width: '100px' }}></div></td>
+                      <td><div className="skeleton skeleton-text" style={{ width: '80px', borderRadius: '12px' }}></div></td>
+                      <td><div className="skeleton skeleton-icon"></div></td>
+                    </tr>
+                  ))
                 ) : sortedEmployees.length === 0 && (
                   <tr>
                     <td colSpan="5" className="empty-state">

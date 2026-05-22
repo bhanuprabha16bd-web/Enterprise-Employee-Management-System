@@ -51,3 +51,43 @@ a {
   text-decoration: none;
   color: inherit;
 }
+
+/* Skeleton Loading Animations */
+.skeleton {
+  background: #e2e8f0;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--border-radius);
+}
+
+.skeleton-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--border-radius-full);
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 4px;
+}
+
+.skeleton-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--border-radius-full);
+}
+
+.skeleton-row td {
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
