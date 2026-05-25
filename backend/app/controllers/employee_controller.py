@@ -1,93 +1,20 @@
+from sqlalchemy.orm import Session
+from app.models.employee_db import Employee
+from app.models.employee import EmployeeCreate
 from fastapi import HTTPException
-import requests
 
-BASE_URL = "https://jsonplaceholder.typicode.com/users"
+def get_all_employees(db: Session):
+    return db.query(Employee).all()
 
-
-ROLES = [
-    "Software Engineer",
-    "Frontend Developer",
-    "Backend Developer",
-    "Marketing Executive",
-    "Sales Manager"
-]
-
-
-DEPARTMENTS = [
-    "Engineering",
-    "Development",
-    "Sales",
-    "Marketing"
-]
-
-
-STATUSES = [
-    "Active",
-    "Inactive",
-    "On Leave"
-]
-
-
-def get_all_employees():
-    response = requests.get(BASE_URL)
-
-    if response.status_code != 200:
-        raise HTTPException(status_code=500, detail="Failed to fetch employees")
-
-    users = response.json()
-
-    employees = []
-
-    for index, user in enumerate(users):
-        employees.append({
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"],
-
-            
-            "role": ROLES[index % len(ROLES)],
-
-            
-            "department": DEPARTMENTS[index % len(DEPARTMENTS)],
-
-            
-            "status": STATUSES[index % len(STATUSES)],
-
-            "joinDate": "2024-01-10",
-            "avatar": f"https://i.pravatar.cc/150?u={user['id']}",
-            "phone": user["phone"],
-            "location": user["address"]["city"]
-        })
-
-    return employees
-
-
-def get_employee_by_id(employee_id: int):
-    response = requests.get(f"{BASE_URL}/{employee_id}")
-
-    if response.status_code != 200:
+def get_employee_by_id(db: Session, employee_id: int):
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-
-    user = response.json()
-
-    employee = {
-        "id": user["id"],
-        "name": user["name"],
-        "email": user["email"],
-
-        
-        "role": ROLES[(user["id"] - 1) % len(ROLES)],
-
-        
-        "department": DEPARTMENTS[(user["id"] - 1) % len(DEPARTMENTS)],
-
-        
-        "status": STATUSES[(user["id"] - 1) % len(STATUSES)],
-
-        "joinDate": "2024-01-10",
-        "avatar": f"https://i.pravatar.cc/150?u={user['id']}",
-        "phone": user["phone"],
-        "location": user["address"]["city"]
-    }
-
     return employee
+
+def create_employee(db: Session, employee: EmployeeCreate):
+    db_employee = Employee(**employee.model_dump())
+    db.add(db_employee)
+    db.commit()
+    db.refresh(db_employee)
+    return db_employee

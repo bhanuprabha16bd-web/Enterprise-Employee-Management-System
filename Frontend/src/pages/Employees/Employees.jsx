@@ -22,27 +22,38 @@ import { employeeService } from '../../services/employeeService';
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({
+    name: '', email: '', role: '', department_id: '',
+    status: 'Active', phone: '', location: '',
+    joinDate: new Date().toISOString().split('T')[0]
+  });
 
   useEffect(() => {
-    const fetchEmployees = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await employeeService.getEmployees();
-        setEmployees(data);
+        const [empData, deptData] = await Promise.all([
+          employeeService.getEmployees(),
+          employeeService.getDepartments()
+        ]);
+        setEmployees(empData);
+        setDepartments(deptData);
       } catch (error) {
-        console.error('Error fetching employees:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchEmployees();
+    fetchData();
   }, []);
 
   
@@ -81,6 +92,27 @@ const Employees = () => {
     }
   };
 
+  const handleAddSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const empData = {
+        ...newEmployee,
+        department_id: parseInt(newEmployee.department_id)
+      };
+      const added = await employeeService.addEmployee(empData);
+      setEmployees([...employees, added]);
+      setShowAddModal(false);
+      setNewEmployee({
+        name: '', email: '', role: '', department_id: '',
+        status: 'Active', phone: '', location: '',
+        joinDate: new Date().toISOString().split('T')[0]
+      });
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      alert('Failed to add employee');
+    }
+  };
+
   return (
     <div className="employees-page">
       
@@ -89,15 +121,15 @@ const Employees = () => {
           <h1 className="page-title">Employees</h1>
           <p className="page-subtitle">Manage your team members and their account permissions here.</p>
         </div>
-        <button className="btn-primary">
+        <button className="btn-primary" onClick={() => setShowAddModal(true)}>
           <Plus size={18} />
           <span>Add Employee</span>
         </button>
       </div>
       <div className="employees-content">
-        {/* Main Table Area */}
+        
         <div className="employees-list-container">
-          {/* Controls */}
+          
           <div className="list-controls">
             <div className="search-bar">
               <Search size={18} className="search-icon" />
@@ -116,18 +148,15 @@ const Employees = () => {
                   onChange={(e) => setSelectedDept(e.target.value)}
                 >
                   <option value="All">All Departments</option>
-                  <option value="Engineering">Engineering</option>
-                  <option value="Design">Design</option>
-                  <option value="Human Resources">Human Resources</option>
-                  <option value="Product">Product</option>
-                  <option value="Data">Data</option>
-                  <option value="Marketing">Marketing</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.name}>{dept.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Table */}
+          
           <div className="table-wrapper">
             <table className="emp-table">
               <thead>
@@ -156,7 +185,7 @@ const Employees = () => {
                   >
                     <td>
                       <div className="emp-cell-user">
-                        <img src={emp.avatar} alt={emp.name} className="emp-avatar-sm" />
+                        <img src={emp.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.name)}&background=random`} alt={emp.name} className="emp-avatar-sm" />
                         <div>
                           <div className="emp-name">{emp.name}</div>
                           <div className="emp-email">{emp.email}</div>
@@ -232,7 +261,7 @@ const Employees = () => {
               
               <div className="profile-card">
                 <div className="profile-avatar-lg-wrapper">
-                  <img src={selectedEmployee.avatar} alt={selectedEmployee.name} className="profile-avatar-lg" />
+                  <img src={selectedEmployee.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedEmployee.name)}&background=random`} alt={selectedEmployee.name} className="profile-avatar-lg" />
                   <span className={`status-dot ${getStatusBadgeClass(selectedEmployee.status)}`}></span>
                 </div>
                 <h2>{selectedEmployee.name}</h2>
@@ -326,6 +355,54 @@ const Employees = () => {
           )}
         </div>
       </div>
+
+      {showAddModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Add New Employee</h2>
+              <button className="btn-icon" onClick={() => setShowAddModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddSubmit} className="add-employee-form">
+              <div className="form-group">
+                <label>Name</label>
+                <input type="text" required value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" required value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Role</label>
+                <input type="text" required value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Department</label>
+                <select required value={newEmployee.department_id} onChange={e => setNewEmployee({...newEmployee, department_id: e.target.value})}>
+                  <option value="">Select Department</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input type="text" value={newEmployee.phone} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Location</label>
+                <input type="text" value={newEmployee.location} onChange={e => setNewEmployee({...newEmployee, location: e.target.value})} />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-outline-primary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">Add Employee</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
