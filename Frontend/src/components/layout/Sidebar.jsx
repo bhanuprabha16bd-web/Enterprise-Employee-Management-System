@@ -7,9 +7,12 @@ import {
   Settings,
   CircleUserRound
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = () => {
+  const { user } = useAuth();
+  
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -36,10 +39,12 @@ const Sidebar = () => {
           <CalendarCheck size={20} />
           <span>Attendance</span>
         </NavLink>
-        <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
-          <Settings size={20} />
-          <span>Settings</span>
-        </NavLink>
+        {user?.role === 'Admin' && (
+          <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+            <Settings size={20} />
+            <span>Settings</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-footer">
@@ -48,8 +53,8 @@ const Sidebar = () => {
             <CircleUserRound size={32} />
           </div>
           <div className="user-info">
-            <span className="user-name">Admin User</span>
-            <span className="user-role">Administrator</span>
+            <span className="user-name">{user?.name || user?.email?.split('@')[0] || 'User'}</span>
+            <span className="user-role">{user?.role || 'Guest'}</span>
           </div>
         </div>
       </div>

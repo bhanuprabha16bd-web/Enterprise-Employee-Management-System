@@ -3,11 +3,13 @@ from sqlalchemy.orm import Session
 from app.controllers import department_controller
 from app.models.employee import DepartmentResponse, DepartmentCreate
 from app.database.config import SessionLocal
+from app.auth import get_current_user
 from typing import List
 
 router = APIRouter(
     prefix="/departments",
-    tags=["Departments"]
+    tags=["Departments"],
+    dependencies=[Depends(get_current_user)]
 )
 
 def get_db():

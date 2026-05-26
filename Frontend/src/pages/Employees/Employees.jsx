@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { 
   Search, 
   Filter, 
@@ -30,6 +31,9 @@ const Employees = () => {
   const [activeTab, setActiveTab] = useState('details');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editEmployee, setEditEmployee] = useState(null);
   const [newEmployee, setNewEmployee] = useState({
     name: '', email: '', role: '', department_id: '',
     status: 'Active', phone: '', location: '',
@@ -107,9 +111,56 @@ const Employees = () => {
         status: 'Active', phone: '', location: '',
         joinDate: new Date().toISOString().split('T')[0]
       });
+      toast.success('Employee added successfully');
     } catch (error) {
       console.error('Error adding employee:', error);
-      alert('Failed to add employee');
+      toast.error('Failed to add employee');
+    }
+  };
+
+  const handleEditClick = (emp) => {
+    const dept = departments.find(d => d.name === emp.department);
+    setEditEmployee({
+      ...emp,
+      department_id: dept ? dept.id : ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const empData = {
+        name: editEmployee.name,
+        email: editEmployee.email,
+        role: editEmployee.role,
+        department_id: parseInt(editEmployee.department_id),
+        status: editEmployee.status,
+        phone: editEmployee.phone,
+        location: editEmployee.location,
+        joinDate: editEmployee.joinDate
+      };
+      const updated = await employeeService.updateEmployee(editEmployee.id, empData);
+      setEmployees(employees.map(emp => emp.id === updated.id ? updated : emp));
+      setSelectedEmployee(updated);
+      setShowEditModal(false);
+      toast.success('Employee updated successfully');
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      toast.error('Failed to update employee');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await employeeService.deleteEmployee(selectedEmployee.id);
+      setEmployees(employees.filter(emp => emp.id !== selectedEmployee.id));
+      setSelectedEmployee(null);
+      setShowDeleteModal(false);
+      toast.success('Employee deleted successfully');
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      toast.error('Failed to delete employee');
     }
   };
 
@@ -267,8 +318,8 @@ const Employees = () => {
                 <h2>{selectedEmployee.name}</h2>
                 <p className="profile-role">{selectedEmployee.role}</p>
                 <div className="profile-actions">
-                  <button className="btn-outline-primary">Message</button>
-                  <button className="btn-primary">Edit Profile</button>
+                  <button className="btn-outline-primary" onClick={() => handleEditClick(selectedEmployee)}>Edit Profile</button>
+                  <button className="btn-primary" style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }} onClick={() => setShowDeleteModal(true)}>Delete</button>
                 </div>
               </div>
 
@@ -400,6 +451,83 @@ const Employees = () => {
                 <button type="submit" className="btn-primary">Add Employee</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editEmployee && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h2>Edit Employee</h2>
+              <button className="btn-icon" onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="add-employee-form">
+              <div className="form-group">
+                <label>Name</label>
+                <input type="text" required value={editEmployee.name || ''} onChange={e => setEditEmployee({...editEmployee, name: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Email</label>
+                <input type="email" required value={editEmployee.email || ''} onChange={e => setEditEmployee({...editEmployee, email: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Role</label>
+                <input type="text" required value={editEmployee.role || ''} onChange={e => setEditEmployee({...editEmployee, role: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Department</label>
+                <select required value={editEmployee.department_id || ''} onChange={e => setEditEmployee({...editEmployee, department_id: e.target.value})}>
+                  <option value="">Select Department</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Status</label>
+                <select required value={editEmployee.status || ''} onChange={e => setEditEmployee({...editEmployee, status: e.target.value})}>
+                  <option value="Active">Active</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input type="text" value={editEmployee.phone || ''} onChange={e => setEditEmployee({...editEmployee, phone: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Location</label>
+                <input type="text" value={editEmployee.location || ''} onChange={e => setEditEmployee({...editEmployee, location: e.target.value})} />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-outline-primary" onClick={() => setShowEditModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2>Confirm Deletion</h2>
+              <button className="btn-icon" onClick={() => setShowDeleteModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '20px 0' }}>
+              <p>Are you sure you want to delete <strong>{selectedEmployee?.name}</strong>?</p>
+              <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginTop: '8px' }}>This action cannot be undone.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-outline-primary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
+              <button type="button" className="btn-primary" style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }} onClick={handleDeleteConfirm}>Delete</button>
+            </div>
           </div>
         </div>
       )}

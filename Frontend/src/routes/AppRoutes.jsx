@@ -6,20 +6,24 @@ import Employees from '../pages/Employees/Employees';
 import Departments from '../pages/Departments/Departments';
 import Attendance from '../pages/Attendance/Attendance';
 import Settings from '../pages/Settings/Settings';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Redirect root to login for demonstration purposes */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/app" element={<MainLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="employees" element={<Employees />} />
-        <Route path="departments" element={<Departments />} />
-        <Route path="attendance" element={<Attendance />} />
-        <Route path="settings" element={<Settings />} />
+      <Route path="/app" element={<ProtectedRoute />}>
+        <Route element={<MainLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="employees" element={<Employees />} />
+          <Route path="departments" element={<Departments />} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="settings" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<Settings />} />
+          </Route>
+        </Route>
       </Route>
     </Routes>
   );

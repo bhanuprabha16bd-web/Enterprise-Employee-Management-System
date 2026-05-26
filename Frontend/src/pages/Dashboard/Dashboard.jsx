@@ -1,11 +1,141 @@
 import { useState, useEffect } from 'react';
 import { Users, UserCheck, CalendarCheck, Building2, TrendingUp, MoreHorizontal } from 'lucide-react';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  ChartTooltip,
+  Legend,
+  Filler
+);
 import './Dashboard.css';
 import { employeeService } from '../../services/employeeService';
+
+const dataWeek = [
+  { name: 'Mon', employees: 65 },
+  { name: 'Tue', employees: 68 },
+  { name: 'Wed', employees: 72 },
+  { name: 'Thu', employees: 75 },
+  { name: 'Fri', employees: 77 },
+  { name: 'Sat', employees: 77 },
+  { name: 'Sun', employees: 77 },
+];
+
+const dataMonth = [
+  { name: 'Week 1', employees: 55 },
+  { name: 'Week 2', employees: 65 },
+  { name: 'Week 3', employees: 70 },
+  { name: 'Week 4', employees: 77 },
+];
+
+const dataYear = [
+  { name: 'Jan', employees: 30 },
+  { name: 'Feb', employees: 35 },
+  { name: 'Mar', employees: 42 },
+  { name: 'Apr', employees: 50 },
+  { name: 'May', employees: 77 },
+  { name: 'Jun', employees: 80 },
+  { name: 'Jul', employees: 85 },
+  { name: 'Aug', employees: 90 },
+  { name: 'Sep', employees: 95 },
+  { name: 'Oct', employees: 98 },
+  { name: 'Nov', employees: 99 },
+  { name: 'Dec', employees: 100 },
+];
+
+const options = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false,
+    },
+    tooltip: {
+      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+      titleColor: '#fff',
+      bodyColor: '#fff',
+      padding: 10,
+      displayColors: false,
+    }
+  },
+  scales: {
+    x: {
+      grid: {
+        display: false,
+      },
+      ticks: {
+        color: '#64748B',
+        font: { size: 12 }
+      },
+      border: {
+        display: false
+      }
+    },
+    y: {
+      grid: {
+        color: '#E2E8F0',
+        borderDash: [5, 5],
+      },
+      ticks: {
+        color: '#64748B',
+        font: { size: 12 },
+        padding: 10
+      },
+      border: {
+        display: false
+      }
+    }
+  },
+  interaction: {
+    intersect: false,
+    mode: 'index',
+  },
+};
 
 const Dashboard = () => {
   const [recentEmployees, setRecentEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [chartPeriod, setChartPeriod] = useState('This Week');
+
+  const getChartDataObj = () => {
+    let data = dataWeek;
+    if (chartPeriod === 'This Month') data = dataMonth;
+    if (chartPeriod === 'This Year') data = dataYear;
+    
+    return {
+      labels: data.map(d => d.name),
+      datasets: [
+        {
+          fill: true,
+          label: 'Employees',
+          data: data.map(d => d.employees),
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          tension: 0.4,
+          pointBackgroundColor: '#fff',
+          pointBorderColor: '#3B82F6',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+      ],
+    };
+  };
 
   useEffect(() => {
     const fetchRecent = async () => {
@@ -100,15 +230,14 @@ const Dashboard = () => {
         <div className="chart-card">
           <div className="card-header">
             <h3>Employee Overview</h3>
-            <select className="select-sm">
+            <select className="select-sm" value={chartPeriod} onChange={(e) => setChartPeriod(e.target.value)}>
               <option>This Week</option>
               <option>This Month</option>
               <option>This Year</option>
             </select>
           </div>
-          <div className="chart-placeholder">
-            
-            <div className="mock-chart-line"></div>
+          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px 0 0 0' }}>
+            <Line options={options} data={getChartDataObj()} />
           </div>
         </div>
 

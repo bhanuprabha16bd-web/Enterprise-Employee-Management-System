@@ -1,13 +1,50 @@
-import { useNavigate, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CircleUserRound, Mail, Lock, Eye } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import './Login.css';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/app');
+    setIsLoading(true);
+    try {
+      const formData = new URLSearchParams();
+      formData.append('username', email);
+      formData.append('password', password);
+
+      const response = await fetch('http://localhost:8000/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+        login(data.access_token, { email: payload.sub, role: payload.role, name: payload.name });
+        toast.success('Logged in successfully!');
+        navigate('/app');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.detail || 'Login failed');
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('An error occurred during login');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -26,7 +63,7 @@ const Login = () => {
             <label htmlFor="email">Email</label>
             <div className="input-wrapper">
               <Mail size={18} className="input-icon" color="#94A3B8" />
-              <input type="email" id="email" placeholder="Enter your email" />
+              <input type="email" id="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
           </div>
 
@@ -34,8 +71,8 @@ const Login = () => {
             <label htmlFor="password">Password</label>
             <div className="input-wrapper">
               <Lock size={18} className="input-icon" color="#94A3B8" />
-              <input type="password" id="password" placeholder="Enter your password" />
-              <button type="button" className="password-toggle">
+              <input type={showPassword ? 'text' : 'password'} id="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
                 <Eye size={18} color="#94A3B8" />
               </button>
             </div>
@@ -49,7 +86,7 @@ const Login = () => {
             <a href="#" className="forgot-password">Forgot password?</a>
           </div>
 
-          <button type="submit" className="login-btn">Login</button>
+          <button type="submit" className="login-btn" disabled={isLoading}>{isLoading ? 'Logging in...' : 'Login'}</button>
         </form>
 
         <div className="login-footer">

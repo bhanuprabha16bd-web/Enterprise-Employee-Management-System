@@ -9,7 +9,14 @@ class UserBase(BaseModel):
     website: str = ""
 
 class UserCreate(UserBase):
-    pass
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: str | None = None
 
 class UserUpdate(UserBase):
     pass

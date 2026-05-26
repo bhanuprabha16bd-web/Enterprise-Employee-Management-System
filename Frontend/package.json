@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "axios": "^1.16.1",
+    "chart.js": "^4.5.1",
     "lucide-react": "^0.344.0",
     "react": "^19.2.6",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.6",
     "react-hot-toast": "^2.6.0",
-    "react-router-dom": "^6.20.0"
+    "react-is": "^19.2.6",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^2.13.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

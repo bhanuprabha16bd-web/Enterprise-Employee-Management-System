@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Bell, Menu, Sun, Moon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Bell, Menu, Sun, Moon, LogOut } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 import './Header.css';
 
 const Header = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -29,6 +33,14 @@ const Header = () => {
     }
   };
 
+  const { logout } = useAuth();
+  
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
+    navigate('/login');
+  };
+
   return (
     <header className="header">
       <div className="header-left">
@@ -49,6 +61,10 @@ const Header = () => {
         <button className="icon-btn notification-btn">
           <Bell size={20} color="var(--color-text-secondary)" />
           <span className="notification-badge"></span>
+        </button>
+
+        <button className="icon-btn" onClick={handleLogout} aria-label="Logout" title="Logout">
+          <LogOut size={20} color="var(--color-danger)" />
         </button>
       </div>
     </header>

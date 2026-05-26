@@ -12,14 +12,27 @@ def get_user(db: Session, user_id: int):
     return user
 
 def create_user(db: Session, user: user_schema.UserCreate):
+    from app.auth import get_password_hash
     existing_user = db.query(user_db.User).filter(user_db.User.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already exists")
-    new_user = user_db.User(**user.dict())
+    user_data = user.dict()
+    password = user_data.pop("password")
+    user_data["password_hash"] = get_password_hash(password)
+    new_user = user_db.User(**user_data)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
+
+def authenticate_user(db: Session, email: str, password: str):
+    from app.auth import verify_password
+    user = db.query(user_db.User).filter(user_db.User.email == email).first()
+    if not user:
+        return False
+    if not verify_password(password, user.password_hash):
+        return False
+    return user
 
 def update_user(db: Session, user_id: int, updated_user: user_schema.UserUpdate):
     user = db.query(user_db.User).filter(user_db.User.id == user_id).first()

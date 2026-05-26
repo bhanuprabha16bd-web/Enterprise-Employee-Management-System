@@ -26,6 +26,17 @@ class EmployeeBase(BaseModel):
 class EmployeeCreate(EmployeeBase):
     department_id: int
 
+class EmployeeUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+    joinDate: Optional[str] = None
+    avatar: Optional[str] = None
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    department_id: Optional[int] = None
+
 class EmployeeResponse(EmployeeBase):
     id: int
     department: str

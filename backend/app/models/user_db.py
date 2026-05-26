@@ -10,6 +10,8 @@ class User(Base):
 
     email = Column(String, unique=True, nullable=False)
 
+    password_hash = Column(String, nullable=False)
+
     role = Column(String, nullable=False)
 
     bio = Column(String)
