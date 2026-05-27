@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CircleUserRound, Mail, Lock, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
@@ -48,49 +48,62 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-card">
-        <div className="login-header">
-          <div className="login-logo">
-            <CircleUserRound size={32} color="var(--color-primary)" />
+    <div className="login-page-container">
+      <div className="login-right-panel">
+        <div className="login-card">
+          <div className="login-header">
+            <h2>Login</h2>
+            <p>Enter your credentials to access your account</p>
           </div>
-          <h1>Welcome Back!</h1>
-          <p>Login to your account</p>
-        </div>
 
-        <form className="login-form" onSubmit={handleLogin}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <div className="input-wrapper">
-              <Mail size={18} className="input-icon" color="#94A3B8" />
-              <input type="email" id="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <form className="login-form" onSubmit={handleLogin}>
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <div className="input-wrapper">
+                <input 
+                  type="email" 
+                  id="email" 
+                  placeholder="email@example.com" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="input-wrapper">
-              <Lock size={18} className="input-icon" color="#94A3B8" />
-              <input type={showPassword ? 'text' : 'password'} id="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-              <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
-                <Eye size={18} color="#94A3B8" />
-              </button>
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <div className="input-wrapper">
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  id="password" 
+                  placeholder="Enter your password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  required 
+                />
+                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                  <Eye size={18} color="#94A3B8" />
+                </button>
+              </div>
             </div>
+
+            <div className="form-options">
+              <label className="remember-me">
+                <input type="checkbox" />
+                <span>Remember me</span>
+              </label>
+              <a href="#" className="forgot-password">Forgot Password?</a>
+            </div>
+
+            <button type="submit" className="login-btn" disabled={isLoading}>
+              {isLoading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+
+          <div className="login-footer">
+            <p>Don't have an account? <a href="#" className="signup-link">Sign up</a></p>
           </div>
-
-          <div className="form-options">
-            <label className="remember-me">
-              <input type="checkbox" />
-              <span>Remember me</span>
-            </label>
-            <a href="#" className="forgot-password">Forgot password?</a>
-          </div>
-
-          <button type="submit" className="login-btn" disabled={isLoading}>{isLoading ? 'Logging in...' : 'Login'}</button>
-        </form>
-
-        <div className="login-footer">
-          <p>Don't have an account? <a href="#" className="contact-admin">Contact Admin</a></p>
         </div>
       </div>
     </div>
