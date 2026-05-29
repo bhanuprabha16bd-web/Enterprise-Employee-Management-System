@@ -10,11 +10,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen }) => {
   const { user } = useAuth();
   
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-logo">
         <div className="logo-icon">
           <CircleUserRound size={24} color="#fff" />
@@ -31,14 +31,18 @@ const Sidebar = () => {
           <Users size={20} />
           <span>Employees</span>
         </NavLink>
-        <NavLink to="/app/departments" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
-          <Building2 size={20} />
-          <span>Departments</span>
-        </NavLink>
-        <NavLink to="/app/attendance" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
-          <CalendarCheck size={20} />
-          <span>Attendance</span>
-        </NavLink>
+        {user?.role === 'Admin' && (
+          <>
+            <NavLink to="/app/departments" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <Building2 size={20} />
+              <span>Departments</span>
+            </NavLink>
+            <NavLink to="/app/attendance" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <CalendarCheck size={20} />
+              <span>Attendance</span>
+            </NavLink>
+          </>
+        )}
         {user?.role === 'Admin' && (
           <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
             <Settings size={20} />
@@ -49,8 +53,12 @@ const Sidebar = () => {
 
       <div className="sidebar-footer">
         <div className="user-profile">
-          <div className="user-avatar">
-            <CircleUserRound size={32} />
+          <div className="user-avatar" style={{ overflow: 'hidden' }}>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="User Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <CircleUserRound size={32} />
+            )}
           </div>
           <div className="user-info">
             <span className="user-name">{user?.name || user?.email?.split('@')[0] || 'User'}</span>

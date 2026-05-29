@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Welcome from '../pages/Welcome/Welcome';
 import Login from '../pages/Login/Login';
+import ForgotPassword from '../pages/Login/ForgotPassword';
 import MainLayout from '../components/layout/MainLayout';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import Employees from '../pages/Employees/Employees';
@@ -12,16 +13,21 @@ import ProtectedRoute from '../components/ProtectedRoute';
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Welcome />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/app" element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="employees" element={<Employees />} />
-          <Route path="departments" element={<Departments />} />
-          <Route path="attendance" element={<Attendance />} />
+          <Route path="departments" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<Departments />} />
+          </Route>
+          <Route path="attendance" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<Attendance />} />
+          </Route>
           <Route path="settings" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<Settings />} />
           </Route>

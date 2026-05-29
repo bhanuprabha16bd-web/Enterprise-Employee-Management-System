@@ -1,39 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Menu, Sun, Moon, LogOut } from 'lucide-react';
+import { Search, Bell, Menu, Sun, Moon, LogOut, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useNotification } from '../../context/NotificationContext';
 import './Header.css';
 
-const Header = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+const Header = ({ toggleSidebar }) => {
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    if (newTheme) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
+  const { theme, toggleTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
   const { logout } = useAuth();
+  
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef(null);
   
   const handleLogout = () => {
     logout();
@@ -41,16 +23,23 @@ const Header = () => {
     navigate('/login');
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <header className="header">
       <div className="header-left">
-        <button className="icon-btn">
+        <button className="icon-btn" onClick={toggleSidebar}>
           <Menu size={20} color="var(--color-text-secondary)" />
         </button>
-        <div className="search-bar">
-          <Search size={18} color="var(--color-text-tertiary)" className="search-icon" />
-          <input type="text" placeholder="Search here..." />
-        </div>
+        
       </div>
       
       <div className="header-right">
@@ -58,10 +47,45 @@ const Header = () => {
           {isDarkMode ? <Sun size={20} color="var(--color-text-secondary)" /> : <Moon size={20} color="var(--color-text-secondary)" />}
         </button>
 
-        <button className="icon-btn notification-btn">
-          <Bell size={20} color="var(--color-text-secondary)" />
-          <span className="notification-badge"></span>
-        </button>
+        <div className="notification-wrapper" ref={notificationRef}>
+          <button className="icon-btn notification-btn" onClick={() => setShowNotifications(!showNotifications)}>
+            <Bell size={20} color="var(--color-text-secondary)" />
+            {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+          </button>
+          
+          {showNotifications && (
+            <div className="notification-dropdown">
+              <div className="notification-header">
+                <h3>Notifications</h3>
+                <div className="notification-actions">
+                  <button onClick={markAllAsRead}>Mark all read</button>
+                  <button onClick={clearNotifications}>Clear</button>
+                </div>
+              </div>
+              <div className="notification-list">
+                {notifications.length === 0 ? (
+                  <p className="no-notifications">No notifications</p>
+                ) : (
+                  notifications.map(notif => (
+                    <div 
+                      key={notif.id} 
+                      className={`notification-item ${notif.read ? 'read' : 'unread'}`}
+                      onClick={() => markAsRead(notif.id)}
+                    >
+                      <div className="notification-content">
+                        <p>{notif.message}</p>
+                        <span className="notification-time">
+                          {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {!notif.read && <span className="unread-dot"></span>}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <button className="icon-btn" onClick={handleLogout} aria-label="Logout" title="Logout">
           <LogOut size={20} color="var(--color-danger)" />

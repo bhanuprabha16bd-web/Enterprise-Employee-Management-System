@@ -26,3 +26,7 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+class PasswordReset(BaseModel):
+    email: EmailStr
+    new_password: str

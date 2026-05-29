@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -8,15 +8,20 @@ import './Login.css';
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [role, setRole] = useState('User');
 
-  const handleLogin = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    try {
+
+    if (isLoginMode) {
+      try {
       const formData = new URLSearchParams();
       formData.append('username', email);
       formData.append('password', password);
@@ -40,10 +45,34 @@ const Login = () => {
         toast.error(errorData.detail || 'Login failed');
       }
     } catch (error) {
-      console.error(error);
-      toast.error('An error occurred during login');
-    } finally {
-      setIsLoading(false);
+        console.error(error);
+        toast.error('An error occurred during login');
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      try {
+        const response = await fetch('http://localhost:8000/users/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password, name, role }),
+        });
+
+        if (response.ok) {
+          toast.success('Account created successfully! Please login.');
+          setIsLoginMode(true);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          toast.error(errorData.detail || 'Signup failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('An error occurred during signup');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -52,11 +81,43 @@ const Login = () => {
       <div className="login-right-panel">
         <div className="login-card">
           <div className="login-header">
-            <h2>Login</h2>
-            <p>Enter your credentials to access your account</p>
+            <h2>{isLoginMode ? 'Login' : 'Sign Up'}</h2>
+            <p>{isLoginMode ? 'Enter your credentials to access your account' : 'Create a new account'}</p>
           </div>
 
-          <form className="login-form" onSubmit={handleLogin}>
+          <form className="login-form" onSubmit={handleSubmit}>
+            {!isLoginMode && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="name">Full Name</label>
+                  <div className="input-wrapper">
+                    <input 
+                      type="text" 
+                      id="name" 
+                      placeholder="John Doe" 
+                      value={name} 
+                      onChange={(e) => setName(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="role">Role</label>
+                  <div className="input-wrapper">
+                    <select 
+                      id="role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      required
+                      style={{ width: '100%', padding: '0.75rem', border: 'none', background: 'transparent', outline: 'none', color: 'inherit', font: 'inherit' }}
+                    >
+                      <option value="User" style={{ color: '#000' }}>User</option>
+                      <option value="Admin" style={{ color: '#000' }}>Admin</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
             <div className="form-group">
               <label htmlFor="email">Email</label>
               <div className="input-wrapper">
@@ -93,16 +154,26 @@ const Login = () => {
                 <input type="checkbox" />
                 <span>Remember me</span>
               </label>
-              <a href="#" className="forgot-password">Forgot Password?</a>
+              <Link to="/forgot-password" className="forgot-password">Forgot Password?</Link>
             </div>
 
             <button type="submit" className="login-btn" disabled={isLoading}>
-              {isLoading ? 'Logging in...' : 'Login'}
+              {isLoading ? (isLoginMode ? 'Logging in...' : 'Signing up...') : (isLoginMode ? 'Login' : 'Sign Up')}
             </button>
           </form>
 
           <div className="login-footer">
-            <p>Don't have an account? <a href="#" className="signup-link">Sign up</a></p>
+            <p>
+              {isLoginMode ? "Don't have an account? " : "Already have an account? "}
+              <button 
+                type="button" 
+                className="signup-link" 
+                onClick={() => setIsLoginMode(!isLoginMode)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
+              >
+                {isLoginMode ? 'Sign up' : 'Log in'}
+              </button>
+            </p>
           </div>
         </div>
       </div>

@@ -49,3 +49,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         )
     access_token = create_access_token(data={"sub": user.email, "role": user.role, "name": user.name})
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/reset-password")
+def reset_password(reset_data: user_schema.PasswordReset, db: Session = Depends(get_db)):
+    return user_controller.reset_password(db, reset_data)

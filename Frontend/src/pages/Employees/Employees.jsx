@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import './Employees.css';
 import { employeeService } from '../../services/employeeService';
+import { useNotification } from '../../context/NotificationContext';
 
 const Employees = () => {
   const [employees, setEmployees] = useState([]);
@@ -39,6 +40,9 @@ const Employees = () => {
     status: 'Active', phone: '', location: '',
     joinDate: new Date().toISOString().split('T')[0]
   });
+  const [touchedFields, setTouchedFields] = useState({});
+
+  const { addNotification } = useNotification();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -106,11 +110,13 @@ const Employees = () => {
       const added = await employeeService.addEmployee(empData);
       setEmployees([...employees, added]);
       setShowAddModal(false);
+      setTouchedFields({});
       setNewEmployee({
         name: '', email: '', role: '', department_id: '',
         status: 'Active', phone: '', location: '',
         joinDate: new Date().toISOString().split('T')[0]
       });
+      addNotification(`New employee added: ${empData.name}`);
       toast.success('Employee added successfully');
     } catch (error) {
       console.error('Error adding employee:', error);
@@ -144,6 +150,7 @@ const Employees = () => {
       setEmployees(employees.map(emp => emp.id === updated.id ? updated : emp));
       setSelectedEmployee(updated);
       setShowEditModal(false);
+      addNotification(`Employee profile updated: ${updated.name}`);
       toast.success('Employee updated successfully');
     } catch (error) {
       console.error('Error updating employee:', error);
@@ -154,6 +161,7 @@ const Employees = () => {
   const handleDeleteConfirm = async () => {
     try {
       await employeeService.deleteEmployee(selectedEmployee.id);
+      addNotification(`Employee deleted: ${selectedEmployee.name}`);
       setEmployees(employees.filter(emp => emp.id !== selectedEmployee.id));
       setSelectedEmployee(null);
       setShowDeleteModal(false);
@@ -164,6 +172,51 @@ const Employees = () => {
     }
   };
 
+  const handleStatusChange = async (emp, newStatus) => {
+    try {
+      const updated = await employeeService.updateEmployee(emp.id, { ...emp, status: newStatus });
+      setEmployees(employees.map(e => e.id === updated.id ? updated : e));
+      if (selectedEmployee && selectedEmployee.id === updated.id) {
+        setSelectedEmployee(updated);
+      }
+      addNotification(`Status changed to ${newStatus} for ${emp.name}`);
+      toast.success('Status updated successfully');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
+  const validateAddForm = () => {
+    const errs = {};
+    if (!newEmployee.name.trim()) errs.name = 'Name is required';
+    if (!newEmployee.email.trim()) {
+      errs.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmployee.email)) {
+      errs.email = 'Invalid email format';
+    }
+    if (!newEmployee.role.trim()) errs.role = 'Role is required';
+    if (!newEmployee.department_id) errs.department = 'Department is required';
+    return errs;
+  };
+
+  const addErrors = showAddModal ? validateAddForm() : {};
+  const isAddValid = Object.keys(addErrors).length === 0;
+
+  const handleBlur = (field) => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
+  };
+
+  const handleCloseAddModal = () => {
+    setShowAddModal(false);
+    setTouchedFields({});
+    setNewEmployee({
+      name: '', email: '', role: '', department_id: '',
+      status: 'Active', phone: '', location: '',
+      joinDate: new Date().toISOString().split('T')[0]
+    });
+  };
+
   return (
     <div className="employees-page">
       
@@ -172,7 +225,7 @@ const Employees = () => {
           <h1 className="page-title">Employees</h1>
           <p className="page-subtitle">Manage your team members and their account permissions here.</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowAddModal(true)}>
+        <button className="btn-primary" onClick={() => { setShowAddModal(true); setTouchedFields({}); }}>
           <Plus size={18} />
           <span>Add Employee</span>
         </button>
@@ -245,10 +298,16 @@ const Employees = () => {
                     </td>
                     <td>{emp.role}</td>
                     <td>{emp.department}</td>
-                    <td>
-                      <span className={`status-badge ${getStatusBadgeClass(emp.status)}`}>
-                        {emp.status}
-                      </span>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <select 
+                        className={`status-dropdown ${getStatusBadgeClass(emp.status)}`}
+                        value={emp.status}
+                        onChange={(e) => handleStatusChange(emp, e.target.value)}
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Leave">Leave</option>
+                      </select>
                     </td>
                     <td>
                       <button className="btn-icon">
@@ -407,36 +466,40 @@ const Employees = () => {
         </div>
       </div>
 
-      {showAddModal && (
+    {showAddModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-header">
               <h2>Add New Employee</h2>
-              <button className="btn-icon" onClick={() => setShowAddModal(false)}>
+              <button className="btn-icon" onClick={handleCloseAddModal}>
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleAddSubmit} className="add-employee-form">
               <div className="form-group">
                 <label>Name</label>
-                <input type="text" required value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} />
+                <input type="text" required value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} onBlur={() => handleBlur('name')} />
+                {touchedFields.name && addErrors.name && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.name}</span>}
               </div>
               <div className="form-group">
                 <label>Email</label>
-                <input type="email" required value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} />
+                <input type="email" required value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} onBlur={() => handleBlur('email')} />
+                {touchedFields.email && addErrors.email && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.email}</span>}
               </div>
               <div className="form-group">
                 <label>Role</label>
-                <input type="text" required value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} />
+                <input type="text" required value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} onBlur={() => handleBlur('role')} />
+                {touchedFields.role && addErrors.role && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.role}</span>}
               </div>
               <div className="form-group">
                 <label>Department</label>
-                <select required value={newEmployee.department_id} onChange={e => setNewEmployee({...newEmployee, department_id: e.target.value})}>
+                <select required value={newEmployee.department_id} onChange={e => setNewEmployee({...newEmployee, department_id: e.target.value})} onBlur={() => handleBlur('department')}>
                   <option value="">Select Department</option>
                   {departments.map(dept => (
                     <option key={dept.id} value={dept.id}>{dept.name}</option>
                   ))}
                 </select>
+                {touchedFields.department && addErrors.department && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.department}</span>}
               </div>
               <div className="form-group">
                 <label>Phone</label>
@@ -447,8 +510,8 @@ const Employees = () => {
                 <input type="text" value={newEmployee.location} onChange={e => setNewEmployee({...newEmployee, location: e.target.value})} />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn-outline-primary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Add Employee</button>
+                <button type="button" className="btn-outline-primary" onClick={handleCloseAddModal}>Cancel</button>
+                <button type="submit" className="btn-primary" disabled={!isAddValid} style={{ opacity: !isAddValid ? 0.5 : 1, cursor: !isAddValid ? 'not-allowed' : 'pointer' }}>Add Employee</button>
               </div>
             </form>
           </div>

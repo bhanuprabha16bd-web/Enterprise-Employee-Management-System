@@ -54,7 +54,7 @@ export const employeeService = {
    * @returns {Promise<Object>} Employee object
    */
   getEmployeeById: async (id) => {
-    if (typeof id === 'string' && id.startsWith('old_')) {
+    if (typeof id === 'string' && (id.startsWith('old_') || id.startsWith('mock_'))) {
       return null; // Mock fetching by ID for jsonplaceholder if needed
     }
     const response = await api.get(`/employees/${id}`);
@@ -76,7 +76,7 @@ export const employeeService = {
    * @param {Object} employeeData
    */
   updateEmployee: async (id, employeeData) => {
-    if (typeof id === 'string' && id.startsWith('old_')) {
+    if (typeof id === 'string' && (id.startsWith('old_') || id.startsWith('mock_'))) {
       return { id, ...employeeData };
     }
     const response = await api.put(`/employees/${id}`, employeeData);
@@ -88,7 +88,7 @@ export const employeeService = {
    * @param {number} id
    */
   deleteEmployee: async (id) => {
-    if (typeof id === 'string' && id.startsWith('old_')) {
+    if (typeof id === 'string' && (id.startsWith('old_') || id.startsWith('mock_'))) {
       return { message: "Employee deleted successfully" };
     }
     const response = await api.delete(`/employees/${id}`);
@@ -100,6 +100,15 @@ export const employeeService = {
    */
   getDepartments: async () => {
     const response = await api.get('/departments/');
+    return response.data;
+  },
+
+  /**
+   * Add a new department
+   * @param {Object} departmentData
+   */
+  addDepartment: async (departmentData) => {
+    const response = await api.post('/departments/', departmentData);
     return response.data;
   }
 };

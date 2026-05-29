@@ -37,7 +37,15 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     
-    const message = error.response?.data?.detail || error.message || 'An unexpected error occurred';
+    let message = error.message || 'An unexpected error occurred';
+    if (error.response?.data?.detail) {
+      const detail = error.response.data.detail;
+      if (Array.isArray(detail)) {
+        message = detail.map(err => `${err.loc ? err.loc.join('.') : 'Error'}: ${err.msg}`).join(', ');
+      } else if (typeof detail === 'string') {
+        message = detail;
+      }
+    }
     toast.error(message);
     
     return Promise.reject(error);

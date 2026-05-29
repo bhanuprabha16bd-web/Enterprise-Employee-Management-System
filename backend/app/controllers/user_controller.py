@@ -55,3 +55,12 @@ def delete_user(db: Session, user_id: int):
     db.delete(user)
     db.commit()
     return {"message": "User deleted successfully"}
+
+def reset_password(db: Session, reset_data: user_schema.PasswordReset):
+    from app.auth import get_password_hash
+    user = db.query(user_db.User).filter(user_db.User.email == reset_data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User with this email not found")
+    user.password_hash = get_password_hash(reset_data.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}

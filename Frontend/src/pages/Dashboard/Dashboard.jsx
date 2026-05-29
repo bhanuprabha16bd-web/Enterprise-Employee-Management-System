@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Users, UserCheck, CalendarCheck, Building2, TrendingUp, MoreHorizontal } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -6,18 +6,22 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
+  ArcElement,
   Title,
   Tooltip as ChartTooltip,
   Legend,
   Filler
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { Doughnut, Bar, Line } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
+  ArcElement,
   Title,
   ChartTooltip,
   Legend,
@@ -26,129 +30,19 @@ ChartJS.register(
 import './Dashboard.css';
 import { employeeService } from '../../services/employeeService';
 
-const dataWeek = [
-  { name: 'Mon', employees: 65 },
-  { name: 'Tue', employees: 68 },
-  { name: 'Wed', employees: 72 },
-  { name: 'Thu', employees: 75 },
-  { name: 'Fri', employees: 77 },
-  { name: 'Sat', employees: 77 },
-  { name: 'Sun', employees: 77 },
-];
-
-const dataMonth = [
-  { name: 'Week 1', employees: 55 },
-  { name: 'Week 2', employees: 65 },
-  { name: 'Week 3', employees: 70 },
-  { name: 'Week 4', employees: 77 },
-];
-
-const dataYear = [
-  { name: 'Jan', employees: 30 },
-  { name: 'Feb', employees: 35 },
-  { name: 'Mar', employees: 42 },
-  { name: 'Apr', employees: 50 },
-  { name: 'May', employees: 77 },
-  { name: 'Jun', employees: 80 },
-  { name: 'Jul', employees: 85 },
-  { name: 'Aug', employees: 90 },
-  { name: 'Sep', employees: 95 },
-  { name: 'Oct', employees: 98 },
-  { name: 'Nov', employees: 99 },
-  { name: 'Dec', employees: 100 },
-];
-
-const options = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      display: false,
-    },
-    tooltip: {
-      backgroundColor: 'rgba(15, 23, 42, 0.9)',
-      titleColor: '#fff',
-      bodyColor: '#fff',
-      padding: 10,
-      displayColors: false,
-    }
-  },
-  scales: {
-    x: {
-      grid: {
-        display: false,
-      },
-      ticks: {
-        color: '#64748B',
-        font: { size: 12 }
-      },
-      border: {
-        display: false
-      }
-    },
-    y: {
-      grid: {
-        color: '#E2E8F0',
-        borderDash: [5, 5],
-      },
-      ticks: {
-        color: '#64748B',
-        font: { size: 12 },
-        padding: 10
-      },
-      border: {
-        display: false
-      }
-    }
-  },
-  interaction: {
-    intersect: false,
-    mode: 'index',
-  },
-};
-
 const Dashboard = () => {
-  const [recentEmployees, setRecentEmployees] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [chartPeriod, setChartPeriod] = useState('This Week');
-
-  const getChartDataObj = () => {
-    let data = dataWeek;
-    if (chartPeriod === 'This Month') data = dataMonth;
-    if (chartPeriod === 'This Year') data = dataYear;
-    
-    return {
-      labels: data.map(d => d.name),
-      datasets: [
-        {
-          fill: true,
-          label: 'Employees',
-          data: data.map(d => d.employees),
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          tension: 0.4,
-          pointBackgroundColor: '#fff',
-          pointBorderColor: '#3B82F6',
-          pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-        },
-      ],
-    };
-  };
+  const [attendanceFilter, setAttendanceFilter] = useState('this_week');
+  const [departmentFilter, setDepartmentFilter] = useState('this_week');
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
-    const fetchRecent = async () => {
+    const fetchEmployees = async () => {
       try {
         setLoading(true);
         const data = await employeeService.getEmployees();
-        const formatted = data.slice(0, 5).map(user => ({
-          name: user.name,
-          role: user.role, 
-          dept: user.department, 
-          date: user.joinDate
-        }));
-        setRecentEmployees(formatted);
+        setEmployees(data);
       } catch (err) {
         console.error('Error fetching dashboard employees:', err);
       } finally {
@@ -156,19 +50,151 @@ const Dashboard = () => {
       }
     };
     
-    fetchRecent();
+    fetchEmployees();
   }, []);
+
+  const stats = useMemo(() => {
+    const total = employees.length;
+    const active = employees.filter(e => e.status === 'Active').length;
+    const departments = new Set(employees.map(e => e.department).filter(Boolean)).size;
+    
+    // Calculate department distribution
+    const deptCounts = {};
+    const statusCounts = { Active: 0, Inactive: 0, 'On Leave': 0 };
+    
+    employees.forEach(emp => {
+      if (emp.department) {
+        deptCounts[emp.department] = (deptCounts[emp.department] || 0) + 1;
+      }
+      if (emp.status && statusCounts[emp.status] !== undefined) {
+        statusCounts[emp.status] += 1;
+      } else if (emp.status) {
+        statusCounts[emp.status] = 1;
+      }
+    });
+
+    return { total, active, departments, deptCounts, statusCounts };
+  }, [employees]);
+
+  // Chart Data
+  const doughnutData = useMemo(() => {
+    const labels = Object.keys(stats.deptCounts);
+    let data = Object.values(stats.deptCounts);
+    
+    if (departmentFilter === 'this_month') {
+      data = data.map((v, i) => Math.max(1, v + (i % 2 === 0 ? 1 : -1)));
+    } else if (departmentFilter === 'this_year') {
+      data = data.map((v, i) => Math.max(1, v + (i % 3 === 0 ? 2 : -1)));
+    }
+
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          backgroundColor: [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
+            '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
+          ],
+          borderWidth: 0,
+          hoverOffset: 4
+        }
+      ]
+    };
+  }, [stats.deptCounts, departmentFilter]);
+
+  const attendanceData = useMemo(() => {
+    if (attendanceFilter === 'this_week') {
+      return {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Attendance %',
+          data: [92, 95, 89, 94, 91, 85, 88],
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      };
+    } else if (attendanceFilter === 'this_month') {
+      return {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        datasets: [{
+          label: 'Attendance %',
+          data: [91, 93, 90, 94],
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      };
+    } else {
+      return {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        datasets: [{
+          label: 'Attendance %',
+          data: [92, 90, 94, 95, 91, 93, 94, 96, 92, 91, 93, 95],
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
+      };
+    }
+  }, [attendanceFilter]);
+
+  const barData = {
+    labels: Object.keys(stats.statusCounts),
+    datasets: [
+      {
+        label: 'Employees',
+        data: Object.values(stats.statusCounts),
+        backgroundColor: ['#10B981', '#94A3B8', '#F59E0B'],
+        borderRadius: 4,
+      }
+    ]
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#64748B',
+          usePointStyle: true,
+          padding: 20
+        }
+      }
+    }
+  };
+
+  const barOptions = {
+    ...chartOptions,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#E2E8F0', borderDash: [5, 5] }, ticks: { stepSize: 1 } },
+      x: { grid: { display: false } }
+    }
+  };
 
   return (
     <div className="dashboard">
       <div className="dashboard-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Welcome back, Admin! Here's what's happening.</p>
+          <p className="page-subtitle">Welcome back, Admin! Here's your enterprise overview.</p>
         </div>
         <div className="date-picker">
-          <CalendarCheck size={18} color="#64748B" />
-          <span>May 21, 2026</span>
+          <input 
+            type="date" 
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            style={{ border: 'none', outline: 'none', color: 'var(--color-text-secondary)', fontFamily: 'inherit', background: 'transparent', width: '100%' }} 
+          />
         </div>
       </div>
 
@@ -179,9 +205,9 @@ const Dashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-title">Total Employees</span>
-            <h3 className="stat-value">100</h3>
+            <h3 className="stat-value">{loading ? '...' : stats.total}</h3>
             <span className="stat-change positive">
-              <TrendingUp size={14} /> + 12.5% from last month
+              <TrendingUp size={14} /> + 2 this week
             </span>
           </div>
         </div>
@@ -192,9 +218,9 @@ const Dashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-title">Active Employees</span>
-            <h3 className="stat-value">77</h3>
+            <h3 className="stat-value">{loading ? '...' : stats.active}</h3>
             <span className="stat-change positive">
-              <TrendingUp size={14} /> + 8.3% from last month
+              <TrendingUp size={14} /> {(stats.active / (stats.total || 1) * 100).toFixed(0)}% of total
             </span>
           </div>
         </div>
@@ -205,9 +231,9 @@ const Dashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-title">Attendance Today</span>
-            <h3 className="stat-value">90%</h3>
+            <h3 className="stat-value">92%</h3>
             <span className="stat-change positive">
-              <TrendingUp size={14} /> + 5.4% from yesterday
+              <TrendingUp size={14} /> + 1.2% from yesterday
             </span>
           </div>
         </div>
@@ -218,7 +244,7 @@ const Dashboard = () => {
           </div>
           <div className="stat-info">
             <span className="stat-title">Departments</span>
-            <h3 className="stat-value">10</h3>
+            <h3 className="stat-value">{loading ? '...' : stats.departments}</h3>
             <span className="stat-change neutral">
               No change
             </span>
@@ -226,29 +252,61 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="dashboard-content-grid">
+      <div className="dashboard-content-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        
         <div className="chart-card">
           <div className="card-header">
-            <h3>Employee Overview</h3>
-            <select className="select-sm" value={chartPeriod} onChange={(e) => setChartPeriod(e.target.value)}>
-              <option>This Week</option>
-              <option>This Month</option>
-              <option>This Year</option>
+            <h3>Department Distribution</h3>
+            <select 
+              className="select-sm" 
+              value={departmentFilter} 
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+            >
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+              <option value="this_year">This Year</option>
             </select>
           </div>
-          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px 0 0 0' }}>
-            <Line options={options} data={getChartDataObj()} />
+          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px' }}>
+            {!loading && <Doughnut data={doughnutData} options={chartOptions} />}
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="card-header">
+            <h3>Employee Activity</h3>
+          </div>
+          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px' }}>
+             {!loading && <Bar data={barData} options={barOptions} />}
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="card-header">
+            <h3>Attendance Overview</h3>
+            <select 
+              className="select-sm" 
+              value={attendanceFilter} 
+              onChange={(e) => setAttendanceFilter(e.target.value)}
+            >
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+              <option value="this_year">This Year</option>
+            </select>
+          </div>
+          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px' }}>
+             {!loading && <Line data={attendanceData} options={chartOptions} />}
           </div>
         </div>
 
         <div className="recent-employees-card">
           <div className="card-header">
             <h3>Recent Employees</h3>
-            <a href="#" className="view-all">View All</a>
+            <a href="/app/employees" className="view-all">View All</a>
           </div>
           <div className="recent-list">
             {loading ? (
-              [...Array(5)].map((_, index) => (
+              [...Array(3)].map((_, index) => (
                 <div className="recent-item" key={`skel-${index}`}>
                   <div className="recent-user-info">
                     <div className="skeleton skeleton-avatar" style={{ width: '40px', height: '40px' }}></div>
@@ -259,10 +317,9 @@ const Dashboard = () => {
                   </div>
                   <div className="skeleton skeleton-text" style={{ width: '80px' }}></div>
                   <div className="skeleton skeleton-text" style={{ width: '80px' }}></div>
-                  <div className="skeleton skeleton-icon"></div>
                 </div>
               ))
-            ) : recentEmployees.map((emp, index) => (
+            ) : employees.slice(0, 5).map((emp, index) => (
               <div className="recent-item" key={index}>
                 <div className="recent-user-info">
                   <div className="recent-avatar">
@@ -273,11 +330,11 @@ const Dashboard = () => {
                     <span className="recent-role">{emp.role}</span>
                   </div>
                 </div>
-                <div className="recent-dept">{emp.dept}</div>
-                <div className="recent-date">{emp.date}</div>
-                <button className="icon-btn-sm">
-                  <MoreHorizontal size={16} color="#94A3B8" />
-                </button>
+                <div className="recent-dept">{emp.department}</div>
+                <div className="recent-date">{emp.joinDate || 'N/A'}</div>
+                <div className={`status-badge ${emp.status ? emp.status.toLowerCase().replace(' ', '-') : ''}`}>
+                  {emp.status}
+                </div>
               </div>
             ))}
           </div>
