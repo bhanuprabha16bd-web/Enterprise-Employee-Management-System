@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database.config import engine, Base
 from app.routes import user_routes, employee_routes, department_routes
-from app.models import user_db, department_db, employee_db
+from app.models import user_db, department_db, employee_db, role_request_db
 
 Base.metadata.create_all(bind=engine)
 

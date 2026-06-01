@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, ArrowUpDown, Calendar, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, Calendar, CheckCircle2, XCircle, Clock, Download } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './Attendance.css';
 
 const Attendance = () => {
+  const { user } = useAuth();
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,6 +101,34 @@ const Attendance = () => {
     setSortConfig({ key, direction });
   };
 
+  const handleDownloadCSV = () => {
+    const headers = ['Employee Name', 'Department', 'Date', 'Check In', 'Check Out', 'Total Hours', 'Status'];
+    const csvContent = [
+      headers.join(','),
+      ...sortedLogs.map(log => 
+        [
+          `"${log.name}"`, 
+          `"${log.department}"`, 
+          `"${log.date}"`, 
+          `"${log.checkIn}"`, 
+          `"${log.checkOut}"`, 
+          `"${log.hours}"`, 
+          `"${log.status}"`
+        ].join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="attendance-page">
       <div className="page-header">
@@ -106,9 +136,20 @@ const Attendance = () => {
           <h1 className="page-title">Attendance Log</h1>
           <p className="page-subtitle">Monitor daily check-ins, check-outs, and employee status.</p>
         </div>
-        <div className="date-picker-large">
-          <Calendar size={18} color="var(--color-text-secondary)" />
-          <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          {user?.role === 'Admin' && (
+            <button 
+              onClick={handleDownloadCSV} 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', backgroundColor: 'var(--color-primary, #2563eb)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', fontSize: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}
+            >
+              <Download size={18} />
+              Export CSV
+            </button>
+          )}
+          <div className="date-picker-large">
+            <Calendar size={18} color="var(--color-text-secondary)" />
+            <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          </div>
         </div>
       </div>
 

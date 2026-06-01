@@ -28,7 +28,7 @@ const AppRoutes = () => {
           <Route path="attendance" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<Attendance />} />
           </Route>
-          <Route path="settings" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+          <Route path="settings" element={<ProtectedRoute />}>
             <Route index element={<Settings />} />
           </Route>
         </Route>

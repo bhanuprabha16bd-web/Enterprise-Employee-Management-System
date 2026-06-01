@@ -30,3 +30,21 @@ class UserResponse(UserBase):
 class PasswordReset(BaseModel):
     email: EmailStr
     new_password: str
+
+class RoleRequestCreate(BaseModel):
+    current_password: str
+    admin_email: EmailStr
+
+class RoleRequestUpdate(BaseModel):
+    status: str
+
+class RoleRequestResponse(BaseModel):
+    id: int
+    user_id: int
+    admin_email: str
+    status: str
+    user_name: str | None = None
+    user_email: str | None = None
+
+    class Config:
+        from_attributes = True

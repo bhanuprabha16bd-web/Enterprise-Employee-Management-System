@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database.config import SessionLocal
-from app.models import user_schema
+from app.models import user_schema, user_db
 from app.controllers import user_controller
+from app.auth import get_current_user
 
 router = APIRouter(
     prefix="/users",
@@ -20,6 +21,22 @@ def get_db():
 @router.get("/", response_model=list[user_schema.UserResponse])
 def get_users(db: Session = Depends(get_db)):
     return user_controller.get_users(db)
+
+@router.post("/request-role")
+def request_role_change(request_data: user_schema.RoleRequestCreate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return user_controller.request_admin_role(db, request_data, current_user.email)
+
+@router.get("/role-requests", response_model=list[user_schema.RoleRequestResponse])
+def get_role_requests(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return user_controller.get_role_requests(db, current_user.email)
+
+@router.put("/role-requests/{request_id}")
+def update_role_request(request_id: int, status_update: user_schema.RoleRequestUpdate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return user_controller.update_role_request(db, request_id, status_update, current_user.email)
 
 @router.get("/{user_id}", response_model=user_schema.UserResponse)
 def get_user(user_id: int, db: Session = Depends(get_db)):

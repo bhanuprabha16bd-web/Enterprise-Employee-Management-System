@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotification } from '../../context/NotificationContext';
+import api from '../../services/api';
 import './Header.css';
 
 const Header = ({ toggleSidebar }) => {
@@ -12,10 +13,12 @@ const Header = ({ toggleSidebar }) => {
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === 'dark';
   const { logout } = useAuth();
+  const { user } = useAuth();
   
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications } = useNotification();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, addNotification } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
+  const fetchedRoleRequestsRef = useRef(false);
   
   const handleLogout = () => {
     logout();
@@ -32,6 +35,28 @@ const Header = ({ toggleSidebar }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const fetchRoleRequestsForNotifications = async () => {
+      if (user?.role === 'Admin' && !fetchedRoleRequestsRef.current) {
+        try {
+          const res = await api.get('/users/role-requests');
+          if (res.data && res.data.length > 0) {
+            // Check if we already have notifications to avoid duplicates on fast re-renders
+            if (notifications.length === 0) {
+              res.data.forEach(req => {
+                addNotification(`New role request from ${req.user_name}`, 'info');
+              });
+            }
+          }
+          fetchedRoleRequestsRef.current = true;
+        } catch (error) {
+          console.error("Failed to fetch role requests for notifications", error);
+        }
+      }
+    };
+    fetchRoleRequestsForNotifications();
+  }, [user, addNotification, notifications.length]);
 
   return (
     <header className="header">

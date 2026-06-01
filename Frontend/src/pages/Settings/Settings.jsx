@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
-import { User, Shield, Bell, Moon, Sun, Save } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { User, Shield, Bell, Moon, Sun, Save, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import api from '../../services/api';
 import './Settings.css';
 
 const Settings = () => {
@@ -41,6 +42,43 @@ const Settings = () => {
     confirmPassword: ''
   });
 
+  const [roleRequestData, setRoleRequestData] = useState({
+    currentPassword: '',
+    adminEmail: ''
+  });
+
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [fetchingRequests, setFetchingRequests] = useState(false);
+
+  const fetchRequests = async () => {
+    if (user?.role !== 'Admin') return;
+    setFetchingRequests(true);
+    try {
+      const response = await api.get('/users/role-requests');
+      setPendingRequests(response.data);
+    } catch (error) {
+      // Handled by api interceptor
+    } finally {
+      setFetchingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'approvals') {
+      fetchRequests();
+    }
+  }, [activeTab]);
+
+  const handleApproval = async (id, status) => {
+    try {
+      const response = await api.put(`/users/role-requests/${id}`, { status });
+      toast.success(response.data.message || `Request ${status} successfully`);
+      fetchRequests();
+    } catch (error) {
+      // Handled by api interceptor
+    }
+  };
+
   const handleProfileSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
@@ -65,6 +103,23 @@ const Settings = () => {
       setSecurityData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       toast.success('Password updated successfully!');
     }, 800);
+  };
+
+  const handleRoleRequestSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await api.post('/users/request-role', {
+        current_password: roleRequestData.currentPassword,
+        admin_email: roleRequestData.adminEmail
+      });
+      toast.success(response.data.message || 'Role request submitted successfully!');
+      setRoleRequestData({ currentPassword: '', adminEmail: '' });
+    } catch (error) {
+      // API interceptor handles error toasts
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderTabContent = () => {
@@ -240,6 +295,81 @@ const Settings = () => {
           </div>
         );
 
+      case 'role-request':
+        return (
+          <div className="settings-pane slide-in">
+            <h2>Role Request</h2>
+            <p className="pane-subtitle">Request an upgrade to the Admin role.</p>
+            
+            <form onSubmit={handleRoleRequestSubmit} className="settings-form">
+              <div className="form-group">
+                <label>Current Password</label>
+                <input 
+                  type="password" 
+                  value={roleRequestData.currentPassword} 
+                  onChange={(e) => setRoleRequestData({...roleRequestData, currentPassword: e.target.value})} 
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Admin Email</label>
+                <input 
+                  type="email" 
+                  value={roleRequestData.adminEmail} 
+                  onChange={(e) => setRoleRequestData({...roleRequestData, adminEmail: e.target.value})} 
+                  required
+                  placeholder="admin@example.com"
+                />
+                <small style={{ color: 'var(--text-muted)' }}>Enter the email address of the Admin who will review your request.</small>
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Submitting...' : <><UserPlus size={18} /> Submit Request</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+
+      case 'approvals':
+        return (
+          <div className="settings-pane slide-in">
+            <h2>Role Approvals</h2>
+            <p className="pane-subtitle">Manage pending role upgrade requests.</p>
+            
+            <div className="requests-container" style={{ marginTop: '24px' }}>
+              {fetchingRequests ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading requests...</div>
+              ) : pendingRequests.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                  No pending requests found.
+                </div>
+              ) : (
+                <div className="requests-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {pendingRequests.map(req => (
+                    <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px' }}>
+                      <div className="req-info">
+                        <h4 style={{ margin: '0 0 4px 0' }}>{req.user_name}</h4>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{req.user_email}</div>
+                      </div>
+                      <div className="req-actions" style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-primary btn-sm" onClick={() => handleApproval(req.id, 'Approved')} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle size={16} /> Approve
+                        </button>
+                        <button className="btn-outline-primary btn-sm" onClick={() => handleApproval(req.id, 'Rejected')} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                          <XCircle size={16} /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -281,6 +411,22 @@ const Settings = () => {
             >
               <Bell size={18} /> Notifications
             </button>
+            {user?.role?.toLowerCase() !== 'admin' && (
+              <button 
+                className={`settings-nav-item ${activeTab === 'role-request' ? 'active' : ''}`}
+                onClick={() => setActiveTab('role-request')}
+              >
+                <UserPlus size={18} /> Role Request
+              </button>
+            )}
+            {user?.role === 'Admin' && (
+              <button 
+                className={`settings-nav-item ${activeTab === 'approvals' ? 'active' : ''}`}
+                onClick={() => setActiveTab('approvals')}
+              >
+                <CheckCircle size={18} /> Approvals
+              </button>
+            )}
           </nav>
         </aside>
 

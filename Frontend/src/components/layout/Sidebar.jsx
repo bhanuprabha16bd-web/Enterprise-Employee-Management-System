@@ -43,12 +43,10 @@ const Sidebar = ({ isOpen }) => {
             </NavLink>
           </>
         )}
-        {user?.role === 'Admin' && (
-          <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
-            <Settings size={20} />
-            <span>Settings</span>
-          </NavLink>
-        )}
+        <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+          <Settings size={20} />
+          <span>Settings</span>
+        </NavLink>
       </nav>
 
       <div className="sidebar-footer">
