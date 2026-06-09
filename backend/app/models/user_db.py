@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
 from app.database.config import Base
 
 class User(Base):
@@ -14,8 +15,16 @@ class User(Base):
 
     role = Column(String, nullable=False)
 
+    status = Column(String, default="Active")
+
     bio = Column(String)
 
-    company = Column(String)
+    company_id = Column(Integer, ForeignKey("companies.id"))
 
     website = Column(String)
+
+    company = relationship("app.models.company_db.Company", back_populates="users")
+
+    @property
+    def company_name(self):
+        return self.company.name if self.company else ""

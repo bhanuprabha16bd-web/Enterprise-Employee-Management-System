@@ -5,7 +5,9 @@ import {
   Building2, 
   CalendarCheck, 
   Settings,
-  CircleUserRound
+  CircleUserRound,
+  Briefcase,
+  ListChecks
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -41,8 +43,20 @@ const Sidebar = ({ isOpen }) => {
               <CalendarCheck size={20} />
               <span>Attendance</span>
             </NavLink>
+            <NavLink to="/app/audit-logs" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <ListChecks size={20} />
+              <span>Audit Logs</span>
+            </NavLink>
+            <NavLink to="/app/members" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <Users size={20} />
+              <span>Users</span>
+            </NavLink>
           </>
         )}
+        <NavLink to="/app/company" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+          <Briefcase size={20} />
+          <span>Company</span>
+        </NavLink>
         <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
           <Settings size={20} />
           <span>Settings</span>

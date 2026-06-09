@@ -1,12 +1,14 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr
 
 class UserBase(BaseModel):
     name: str
     email: EmailStr
     role: str
-    bio: str = ""
-    company: str = ""
-    website: str = ""
+    status: str = "Active"
+    bio: str | None = ""
+    company_name: str | None = ""
+    website: str | None = ""
 
 class UserCreate(UserBase):
     password: str
@@ -45,6 +47,24 @@ class RoleRequestResponse(BaseModel):
     status: str
     user_name: str | None = None
     user_email: str | None = None
+
+    class Config:
+        from_attributes = True
+
+class InvitationCreate(BaseModel):
+    email: EmailStr
+    role: str | None = "Employee"
+
+class InvitationResponse(BaseModel):
+    id: int
+    email: EmailStr
+    token: str
+    status: str
+    role: str
+    invited_by: int
+    company_id: int
+    created_at: datetime
+    expires_at: datetime
 
     class Config:
         from_attributes = True

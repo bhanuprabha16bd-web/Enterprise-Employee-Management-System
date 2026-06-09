@@ -1,0 +1,38 @@
+from sqlalchemy.orm import Session
+from app.models.audit_log_db import AuditLog
+from app.models import user_db
+
+
+def create_audit_log(db: Session, event_type: str, description: str, actor_id: int, company_id: int):
+    audit_log = AuditLog(
+        event_type=event_type,
+        description=description,
+        actor_id=actor_id,
+        company_id=company_id,
+    )
+    db.add(audit_log)
+    db.commit()
+    db.refresh(audit_log)
+    return audit_log
+
+
+def get_audit_logs(db: Session, company_id: int):
+    logs = (
+        db.query(AuditLog)
+        .filter(AuditLog.company_id == company_id)
+        .order_by(AuditLog.created_at.desc())
+        .all()
+    )
+    result = []
+    for log in logs:
+        actor = db.query(user_db.User).filter(user_db.User.id == log.actor_id).first()
+        result.append({
+            "id": log.id,
+            "event_type": log.event_type,
+            "description": log.description,
+            "actor_id": log.actor_id,
+            "actor_name": actor.name if actor else "Unknown",
+            "company_id": log.company_id,
+            "created_at": log.created_at,
+        })
+    return result

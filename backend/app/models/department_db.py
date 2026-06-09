@@ -8,4 +8,4 @@ class Department(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
 
-    employees = relationship("Employee", back_populates="department")
+    employees = relationship("app.models.employee_db.Employee", back_populates="department")

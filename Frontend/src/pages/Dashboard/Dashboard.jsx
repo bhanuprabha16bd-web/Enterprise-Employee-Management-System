@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, UserCheck, CalendarCheck, Building2, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { Users, UserCheck, Building2, TrendingUp, RefreshCw } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -31,129 +31,120 @@ import './Dashboard.css';
 import { employeeService } from '../../services/employeeService';
 
 const Dashboard = () => {
+  const [analytics, setAnalytics] = useState({
+    total_employees: 0,
+    active_employees: 0,
+    total_departments: 0,
+    pending_role_requests: 0,
+    employees_by_department: [],
+    employees_by_role: [],
+    employee_status_overview: [],
+  });
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [attendanceFilter, setAttendanceFilter] = useState('this_week');
-  const [departmentFilter, setDepartmentFilter] = useState('this_week');
+  const [refreshing, setRefreshing] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
 
+  const fetchAnalytics = async () => {
+    try {
+      setLoading(true);
+      const [analyticsData, employeeData] = await Promise.all([
+        employeeService.getDashboardAnalytics(),
+        employeeService.getEmployees(),
+      ]);
+      setAnalytics(analyticsData);
+      setEmployees(employeeData);
+    } catch (err) {
+      console.error('Error fetching dashboard analytics:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setLoading(true);
-        const data = await employeeService.getEmployees();
-        setEmployees(data);
-      } catch (err) {
-        console.error('Error fetching dashboard employees:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchEmployees();
+    fetchAnalytics();
   }, []);
+
+  const refreshAnalytics = async () => {
+    setRefreshing(true);
+    await fetchAnalytics();
+  };
 
   const stats = useMemo(() => {
     const total = employees.length;
-    const active = employees.filter(e => e.status === 'Active').length;
-    const departments = new Set(employees.map(e => e.department).filter(Boolean)).size;
-    
-    // Calculate department distribution
-    const deptCounts = {};
-    const statusCounts = { Active: 0, Inactive: 0, 'On Leave': 0 };
-    
-    employees.forEach(emp => {
-      if (emp.department) {
-        deptCounts[emp.department] = (deptCounts[emp.department] || 0) + 1;
-      }
-      if (emp.status && statusCounts[emp.status] !== undefined) {
-        statusCounts[emp.status] += 1;
-      } else if (emp.status) {
-        statusCounts[emp.status] = 1;
-      }
-    });
-
-    return { total, active, departments, deptCounts, statusCounts };
-  }, [employees]);
-
-  // Chart Data
-  const doughnutData = useMemo(() => {
-    const labels = Object.keys(stats.deptCounts);
-    let data = Object.values(stats.deptCounts);
-    
-    if (departmentFilter === 'this_month') {
-      data = data.map((v, i) => Math.max(1, v + (i % 2 === 0 ? 1 : -1)));
-    } else if (departmentFilter === 'this_year') {
-      data = data.map((v, i) => Math.max(1, v + (i % 3 === 0 ? 2 : -1)));
-    }
+    const active = employees.filter((emp) => emp.status === 'Active').length;
+    const departments = new Set(employees.map((emp) => emp.department).filter(Boolean)).size;
 
     return {
-      labels,
-      datasets: [
-        {
-          data,
-          backgroundColor: [
-            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
-            '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
-          ],
-          borderWidth: 0,
-          hoverOffset: 4
-        }
-      ]
+      total,
+      active,
+      departments,
+      pending: analytics.pending_role_requests,
     };
-  }, [stats.deptCounts, departmentFilter]);
+  }, [analytics.pending_role_requests, employees]);
 
-  const attendanceData = useMemo(() => {
-    if (attendanceFilter === 'this_week') {
-      return {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-          label: 'Attendance %',
-          data: [92, 95, 89, 94, 91, 85, 88],
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-          tension: 0.4
-        }]
-      };
-    } else if (attendanceFilter === 'this_month') {
-      return {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        datasets: [{
-          label: 'Attendance %',
-          data: [91, 93, 90, 94],
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-          tension: 0.4
-        }]
-      };
-    } else {
-      return {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        datasets: [{
-          label: 'Attendance %',
-          data: [92, 90, 94, 95, 91, 93, 94, 96, 92, 91, 93, 95],
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-          tension: 0.4
-        }]
-      };
-    }
-  }, [attendanceFilter]);
+  const departmentChartData = useMemo(() => ({
+    labels: analytics.employees_by_department.map((item) => item.label),
+    datasets: [
+      {
+        data: analytics.employees_by_department.map((item) => item.count),
+        backgroundColor: [
+          '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+          '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
+        ],
+        borderWidth: 0,
+        hoverOffset: 6,
+      }
+    ]
+  }), [analytics.employees_by_department]);
 
-  const barData = {
-    labels: Object.keys(stats.statusCounts),
+  const roleChartData = useMemo(() => ({
+    labels: analytics.employees_by_role.map((item) => item.label),
     datasets: [
       {
         label: 'Employees',
-        data: Object.values(stats.statusCounts),
-        backgroundColor: ['#10B981', '#94A3B8', '#F59E0B'],
-        borderRadius: 4,
+        data: analytics.employees_by_role.map((item) => item.count),
+        backgroundColor: '#8B5CF6',
+        borderRadius: 6,
       }
     ]
-  };
+  }), [analytics.employees_by_role]);
+
+  const statusChartData = useMemo(() => ({
+    labels: analytics.employee_status_overview.map((item) => item.label),
+    datasets: [
+      {
+        label: 'Employees',
+        data: analytics.employee_status_overview.map((item) => item.count),
+        backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#94A3B8'],
+        borderRadius: 6,
+      }
+    ]
+  }), [analytics.employee_status_overview]);
+
+  const attendanceTrendData = useMemo(() => {
+    const total = analytics.total_employees || 1;
+    const baseValue = Math.round((analytics.active_employees / total) * 100) || 80;
+
+    return {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      datasets: [{
+        label: 'Attendance Trend',
+        data: [
+          Math.max(0, Math.min(100, baseValue)),
+          Math.max(0, Math.min(100, baseValue - 2)),
+          Math.max(0, Math.min(100, baseValue + 1)),
+          Math.max(0, Math.min(100, baseValue - 1)),
+          Math.max(0, Math.min(100, baseValue + 2)),
+        ],
+        borderColor: '#3B82F6',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        fill: true,
+        tension: 0.3,
+      }]
+    };
+  }, [analytics.total_employees, analytics.active_employees]);
 
   const chartOptions = {
     responsive: true,
@@ -164,9 +155,17 @@ const Dashboard = () => {
         labels: {
           color: '#64748B',
           usePointStyle: true,
-          padding: 20
+          padding: 16
         }
       }
+    }
+  };
+
+  const doughnutOptions = {
+    ...chartOptions,
+    plugins: {
+      ...chartOptions.plugins,
+      legend: { display: false }
     }
   };
 
@@ -186,15 +185,20 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Welcome back, Admin! Here's your enterprise overview.</p>
+          <p className="page-subtitle">Analytics overview for employees, departments, and approvals.</p>
         </div>
-        <div className="date-picker">
-          <input 
-            type="date" 
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            style={{ border: 'none', outline: 'none', color: 'var(--color-text-secondary)', fontFamily: 'inherit', background: 'transparent', width: '100%' }} 
-          />
+        <div className="header-actions">
+          <button className="refresh-button" onClick={refreshAnalytics} disabled={loading || refreshing}>
+            <RefreshCw size={16} /> {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <div className="date-picker">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ border: 'none', outline: 'none', color: 'var(--color-text-secondary)', fontFamily: 'inherit', background: 'transparent', width: '100%' }}
+            />
+          </div>
         </div>
       </div>
 
@@ -207,7 +211,7 @@ const Dashboard = () => {
             <span className="stat-title">Total Employees</span>
             <h3 className="stat-value">{loading ? '...' : stats.total}</h3>
             <span className="stat-change positive">
-              <TrendingUp size={14} /> + 2 this week
+              <TrendingUp size={14} /> Workforce snapshot
             </span>
           </div>
         </div>
@@ -220,82 +224,84 @@ const Dashboard = () => {
             <span className="stat-title">Active Employees</span>
             <h3 className="stat-value">{loading ? '...' : stats.active}</h3>
             <span className="stat-change positive">
-              <TrendingUp size={14} /> {(stats.active / (stats.total || 1) * 100).toFixed(0)}% of total
+              {loading ? '...' : `${stats.total ? Math.round((stats.active / stats.total) * 100) : 0}%`} active
             </span>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon-wrapper purple">
-            <CalendarCheck size={24} color="#8B5CF6" />
+            <Building2 size={24} color="var(--color-warning)" />
           </div>
           <div className="stat-info">
-            <span className="stat-title">Attendance Today</span>
-            <h3 className="stat-value">92%</h3>
-            <span className="stat-change positive">
-              <TrendingUp size={14} /> + 1.2% from yesterday
-            </span>
+            <span className="stat-title">Total Departments</span>
+            <h3 className="stat-value">{loading ? '...' : stats.departments}</h3>
+            <span className="stat-change neutral">Organizational coverage</span>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon-wrapper orange">
-            <Building2 size={24} color="var(--color-warning)" />
+            <TrendingUp size={24} color="var(--color-secondary)" />
           </div>
           <div className="stat-info">
-            <span className="stat-title">Departments</span>
-            <h3 className="stat-value">{loading ? '...' : stats.departments}</h3>
-            <span className="stat-change neutral">
-              No change
-            </span>
+            <span className="stat-title">Pending Requests</span>
+            <h3 className="stat-value">{loading ? '...' : stats.pending}</h3>
+            <span className="stat-change positive">Needs review</span>
           </div>
         </div>
       </div>
 
-      <div className="dashboard-content-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        
+      <div className="dashboard-content-grid">
         <div className="chart-card">
           <div className="card-header">
-            <h3>Department Distribution</h3>
-            <select 
-              className="select-sm" 
-              value={departmentFilter} 
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
-              <option value="this_year">This Year</option>
-            </select>
+            <h3>Employee Distribution by Department</h3>
           </div>
-          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px' }}>
-            {!loading && <Doughnut data={doughnutData} options={chartOptions} />}
+          <div className="chart-placeholder" style={{ height: '320px', backgroundColor: 'transparent', padding: '10px' }}>
+            {!loading && analytics.employees_by_department.length > 0 ? (
+              <Doughnut data={departmentChartData} options={doughnutOptions} />
+            ) : (
+              <div>No department distribution data available.</div>
+            )}
           </div>
         </div>
 
         <div className="chart-card">
           <div className="card-header">
-            <h3>Employee Activity</h3>
+            <h3>Employee Count by Role</h3>
           </div>
-          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px' }}>
-             {!loading && <Bar data={barData} options={barOptions} />}
+          <div className="chart-placeholder" style={{ height: '320px', backgroundColor: 'transparent', padding: '10px' }}>
+            {!loading && analytics.employees_by_role.length > 0 ? (
+              <Bar data={roleChartData} options={barOptions} />
+            ) : (
+              <div>No role count data available.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="chart-card">
+          <div className="card-header">
+            <h3>Employee Status Overview</h3>
+          </div>
+          <div className="chart-placeholder" style={{ height: '320px', backgroundColor: 'transparent', padding: '10px' }}>
+            {!loading && analytics.employee_status_overview.length > 0 ? (
+              <Bar data={statusChartData} options={barOptions} />
+            ) : (
+              <div>No status overview data available.</div>
+            )}
           </div>
         </div>
 
         <div className="chart-card">
           <div className="card-header">
             <h3>Attendance Overview</h3>
-            <select 
-              className="select-sm" 
-              value={attendanceFilter} 
-              onChange={(e) => setAttendanceFilter(e.target.value)}
-            >
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
-              <option value="this_year">This Year</option>
-            </select>
           </div>
-          <div className="chart-placeholder" style={{ height: '300px', backgroundColor: 'transparent', padding: '10px' }}>
-             {!loading && <Line data={attendanceData} options={chartOptions} />}
+          <div className="chart-placeholder" style={{ height: '320px', backgroundColor: 'transparent', padding: '10px' }}>
+            {!loading ? (
+              <Line data={attendanceTrendData} options={chartOptions} />
+            ) : (
+              <div>Loading attendance overview...</div>
+            )}
           </div>
         </div>
 
@@ -319,24 +325,28 @@ const Dashboard = () => {
                   <div className="skeleton skeleton-text" style={{ width: '80px' }}></div>
                 </div>
               ))
-            ) : employees.slice(0, 5).map((emp, index) => (
-              <div className="recent-item" key={index}>
-                <div className="recent-user-info">
-                  <div className="recent-avatar">
-                    {emp.name.charAt(0)}
+            ) : employees.length > 0 ? (
+              employees.slice(0, 5).map((emp, index) => (
+                <div className="recent-item" key={index}>
+                  <div className="recent-user-info">
+                    <div className="recent-avatar">
+                      {emp.name.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="recent-name">{emp.name}</h4>
+                      <span className="recent-role">{emp.role}</span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="recent-name">{emp.name}</h4>
-                    <span className="recent-role">{emp.role}</span>
+                  <div className="recent-dept">{emp.department || 'Unassigned'}</div>
+                  <div className="recent-date">{emp.joinDate || 'N/A'}</div>
+                  <div className={`status-badge ${emp.status ? emp.status.toLowerCase().replace(' ', '-') : ''}`}>
+                    {emp.status}
                   </div>
                 </div>
-                <div className="recent-dept">{emp.department}</div>
-                <div className="recent-date">{emp.joinDate || 'N/A'}</div>
-                <div className={`status-badge ${emp.status ? emp.status.toLowerCase().replace(' ', '-') : ''}`}>
-                  {emp.status}
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div>No recent employees available.</div>
+            )}
           </div>
         </div>
       </div>

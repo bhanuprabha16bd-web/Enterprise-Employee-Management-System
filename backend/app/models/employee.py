@@ -39,14 +39,16 @@ class EmployeeUpdate(BaseModel):
 
 class EmployeeResponse(EmployeeBase):
     id: int
-    department: str
+    department: Optional[str] = None
 
     @field_validator('department', mode='before')
     @classmethod
     def extract_department_name(cls, v):
+        if not v:
+            return None
         if hasattr(v, 'name'):
             return v.name
-        return v
+        return str(v)
 
     class Config:
         from_attributes = True

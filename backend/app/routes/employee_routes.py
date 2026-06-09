@@ -20,21 +20,21 @@ def get_db():
         db.close()
 
 @router.get("/", response_model=List[EmployeeResponse])
-def get_employees(db: Session = Depends(get_db)):
-    return employee_controller.get_all_employees(db)
+def get_employees(db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.get_all_employees(db, current_user.company_id)
 
 @router.get("/{employee_id}", response_model=EmployeeResponse)
-def get_employee(employee_id: int, db: Session = Depends(get_db)):
-    return employee_controller.get_employee_by_id(db, employee_id)
+def get_employee(employee_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.get_employee_by_id(db, employee_id, current_user.company_id)
 
 @router.post("/", response_model=EmployeeResponse)
-def create_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
-    return employee_controller.create_employee(db, employee)
+def create_employee(employee: EmployeeCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.create_employee(db, employee, current_user.company_id, current_user.id)
 
 @router.put("/{employee_id}", response_model=EmployeeResponse)
-def update_employee(employee_id: int, employee: EmployeeUpdate, db: Session = Depends(get_db)):
-    return employee_controller.update_employee(db, employee_id, employee)
+def update_employee(employee_id: int, employee: EmployeeUpdate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.update_employee(db, employee_id, employee, current_user.company_id, current_user.id)
 
 @router.delete("/{employee_id}")
-def delete_employee(employee_id: int, db: Session = Depends(get_db)):
-    return employee_controller.delete_employee(db, employee_id)
+def delete_employee(employee_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.delete_employee(db, employee_id, current_user.company_id, current_user.id)

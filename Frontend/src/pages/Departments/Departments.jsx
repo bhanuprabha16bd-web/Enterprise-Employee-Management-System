@@ -68,7 +68,7 @@ const Departments = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Departments</h1>
-          <p className="page-subtitle">Manage company departments and structural units.</p>
+          
         </div>
         <button className="btn-primary" onClick={() => setShowAddModal(true)}>
           <Plus size={18} />

@@ -7,7 +7,7 @@ import {
   MoreVertical, 
   ChevronLeft, 
   ChevronRight, 
-  Users, 
+  Users as UsersIcon, 
   UserCheck, 
   UserX,
   Briefcase,
@@ -18,11 +18,12 @@ import {
   X,
   ArrowUpDown
 } from 'lucide-react';
-import './Employees.css';
+import './Users.css';
 import { employeeService } from '../../services/employeeService';
 import { useNotification } from '../../context/NotificationContext';
 
-const Employees = () => {
+const Users = () => {
+  const [currentCompany, setCurrentCompany] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,12 +49,15 @@ const Employees = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [empData, deptData] = await Promise.all([
-          employeeService.getEmployees(),
-          employeeService.getDepartments()
-        ]);
-        setEmployees(empData);
-        setDepartments(deptData);
+        const [empData, deptData, companyData] = await Promise.all([
+  employeeService.getEmployees(),
+  employeeService.getDepartments(),
+  employeeService.getCurrentCompany()
+]);
+
+setEmployees(empData);
+setDepartments(deptData);
+setCurrentCompany(companyData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -82,6 +86,9 @@ const Employees = () => {
     }
     return 0;
   });
+  // The backend API already filters local employees by company_id to enforce data isolation.
+  // Mock employees from jsonplaceholder do not have a companyId, so we will display them as is.
+  const companyEmployees = sortedEmployees;
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -104,9 +111,10 @@ const Employees = () => {
     e.preventDefault();
     try {
       const empData = {
-        ...newEmployee,
-        department_id: parseInt(newEmployee.department_id)
-      };
+  ...newEmployee,
+  department_id: parseInt(newEmployee.department_id),
+  companyId: currentCompany?.id
+};
       const added = await employeeService.addEmployee(empData);
       setEmployees([...employees, added]);
       setShowAddModal(false);
@@ -137,15 +145,16 @@ const Employees = () => {
     e.preventDefault();
     try {
       const empData = {
-        name: editEmployee.name,
-        email: editEmployee.email,
-        role: editEmployee.role,
-        department_id: parseInt(editEmployee.department_id),
-        status: editEmployee.status,
-        phone: editEmployee.phone,
-        location: editEmployee.location,
-        joinDate: editEmployee.joinDate
-      };
+  name: editEmployee.name,
+  email: editEmployee.email,
+  role: editEmployee.role,
+  department_id: parseInt(editEmployee.department_id),
+  status: editEmployee.status,
+  phone: editEmployee.phone,
+  location: editEmployee.location,
+  joinDate: editEmployee.joinDate,
+  companyId: currentCompany?.id
+};
       const updated = await employeeService.updateEmployee(editEmployee.id, empData);
       setEmployees(employees.map(emp => emp.id === updated.id ? updated : emp));
       setSelectedEmployee(updated);
@@ -187,9 +196,18 @@ const Employees = () => {
     }
   };
 
+  const isDuplicateEmployeeName = (name) => {
+    const normalizedName = name.trim().toLowerCase();
+    return employees.some(emp => emp.name?.trim().toLowerCase() === normalizedName);
+  };
+
   const validateAddForm = () => {
     const errs = {};
-    if (!newEmployee.name.trim()) errs.name = 'Name is required';
+    if (!newEmployee.name.trim()) {
+      errs.name = 'Name is required';
+    } else if (isDuplicateEmployeeName(newEmployee.name)) {
+      errs.name = 'An employee with this name already exists';
+    }
     if (!newEmployee.email.trim()) {
       errs.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmployee.email)) {
@@ -223,7 +241,13 @@ const Employees = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Employees</h1>
-          <p className="page-subtitle">Manage your team members and their account permissions here.</p>
+          
+
+{currentCompany && (
+  <div className="company-badge">
+    Workspace: {currentCompany.name}
+  </div>
+)}
         </div>
         <button className="btn-primary" onClick={() => { setShowAddModal(true); setTouchedFields({}); }}>
           <Plus size={18} />
@@ -272,16 +296,21 @@ const Employees = () => {
                     Role <ArrowUpDown size={14} className="sort-icon" />
                   </th>
                   <th onClick={() => handleSort('department')} className="sortable">
-                    Department <ArrowUpDown size={14} className="sort-icon" />
-                  </th>
-                  <th onClick={() => handleSort('status')} className="sortable">
-                    Status <ArrowUpDown size={14} className="sort-icon" />
-                  </th>
+  Department
+</th>
+
+<th>
+  Company
+</th>
+
+<th onClick={() => handleSort('status')} className="sortable">
+  Status
+</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedEmployees.map(emp => (
+                {companyEmployees.map(emp => (
                   <tr 
                     key={emp.id} 
                     onClick={() => setSelectedEmployee(emp)}
@@ -298,7 +327,14 @@ const Employees = () => {
                     </td>
                     <td>{emp.role}</td>
                     <td>{emp.department}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
+
+<td>
+  <span className="company-tag">
+    {emp.companyName || currentCompany?.name}
+  </span>
+</td>
+
+<td onClick={(e) => e.stopPropagation()}>
                       <select 
                         className={`status-dropdown ${getStatusBadgeClass(emp.status)}`}
                         value={emp.status}
@@ -344,20 +380,25 @@ const Employees = () => {
               </tbody>
             </table>
           </div>
-
           
           <div className="pagination">
-            <span className="page-info">Showing 1 to {sortedEmployees.length} of {employees.length} entries</span>
-            <div className="page-controls">
-              <button className="btn-page" disabled><ChevronLeft size={16} /></button>
-              <button className="btn-page active">1</button>
-              <button className="btn-page">2</button>
-              <button className="btn-page">3</button>
-              <button className="btn-page"><ChevronRight size={16} /></button>
-            </div>
-          </div>
-        </div>
+  <span className="page-info">
+    Showing 1 to {companyEmployees.length} of {companyEmployees.length} employees
+  </span>
 
+  <div className="page-controls">
+    <button className="btn-page" disabled>
+      <ChevronLeft size={16} />
+    </button>
+    <button className="btn-page active">1</button>
+    <button className="btn-page">2</button>
+    <button className="btn-page">3</button>
+    <button className="btn-page">
+      <ChevronRight size={16} />
+    </button>
+  </div>
+</div>
+        </div>
         
         <div className={`profile-preview ${selectedEmployee ? 'open' : ''}`}>
           {selectedEmployee ? (
@@ -457,7 +498,7 @@ const Employees = () => {
           ) : (
             <div className="empty-profile">
               <div className="empty-icon-wrapper">
-                <Users size={48} />
+                <UsersIcon size={48} />
               </div>
               <h3>Select an Employee</h3>
               <p>Click on an employee row to view their detailed profile.</p>
@@ -598,4 +639,4 @@ const Employees = () => {
   );
 };
 
-export default Employees;
+export default Users;

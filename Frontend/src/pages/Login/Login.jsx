@@ -15,6 +15,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [role, setRole] = useState('User');
+  const [companyName, setCompanyName] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,7 +58,7 @@ const Login = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ email, password, name, role }),
+          body: JSON.stringify({ email, password, name, role, company_name: companyName }),
         });
 
         if (response.ok) {
@@ -113,8 +114,24 @@ const Login = () => {
                     >
                       <option value="User" style={{ color: '#000' }}>User</option>
                       <option value="Admin" style={{ color: '#000' }}>Admin</option>
-                    </select>
+                      </select>
                   </div>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="companyName">Company Name</label>
+                  <div className="input-wrapper">
+                    <input 
+                      type="text" 
+                      id="companyName" 
+                      placeholder="Company Inc, Corp, or Global Tech" 
+                      value={companyName} 
+                      onChange={(e) => setCompanyName(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <small style={{ color: '#94a3b8', marginTop: '6px', display: 'block' }}>
+                    Use one of the allowed companies: Company Inc, Corp, Global Tech.
+                  </small>
                 </div>
               </>
             )}

@@ -134,7 +134,7 @@ const Attendance = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Attendance Log</h1>
-          <p className="page-subtitle">Monitor daily check-ins, check-outs, and employee status.</p>
+          
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           {user?.role === 'Admin' && (

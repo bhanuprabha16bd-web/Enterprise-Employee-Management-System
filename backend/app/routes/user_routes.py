@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database.config import SessionLocal
 from app.models import user_schema, user_db
-from app.controllers import user_controller
+from app.controllers import user_controller, invitation_controller
 from app.auth import get_current_user
 
 router = APIRouter(
@@ -19,12 +19,36 @@ def get_db():
         db.close()
 
 @router.get("/", response_model=list[user_schema.UserResponse])
-def get_users(db: Session = Depends(get_db)):
-    return user_controller.get_users(db)
+def get_users(db: Session = Depends(get_db), current_user: user_db.User = Depends(get_current_user)):
+    try:
+        users = user_controller.get_users(db, current_user.company_id)
+        return [user_schema.UserResponse.model_validate(u) for u in users]
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Serialization Error: {str(e)}")
+
+@router.get("/invitations", response_model=list[user_schema.InvitationResponse])
+def get_invitations(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return invitation_controller.get_invitations(db, current_user.company_id)
+
+@router.post("/invitations", response_model=user_schema.InvitationResponse)
+def create_invitation(invitation_data: user_schema.InvitationCreate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return invitation_controller.create_invitation(db, invitation_data.email, invitation_data.role, current_user)
+
+@router.delete("/invitations/{invitation_id}")
+def revoke_invitation(invitation_id: int, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return invitation_controller.revoke_invitation(db, invitation_id, current_user.company_id, current_user)
 
 @router.post("/request-role")
 def request_role_change(request_data: user_schema.RoleRequestCreate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return user_controller.request_admin_role(db, request_data, current_user.email)
+    return user_controller.request_admin_role(db, request_data, current_user)
 
 @router.get("/role-requests", response_model=list[user_schema.RoleRequestResponse])
 def get_role_requests(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -36,23 +60,33 @@ def get_role_requests(current_user: user_db.User = Depends(get_current_user), db
 def update_role_request(request_id: int, status_update: user_schema.RoleRequestUpdate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    return user_controller.update_role_request(db, request_id, status_update, current_user.email)
+    return user_controller.update_role_request(db, request_id, status_update, current_user)
 
 @router.get("/{user_id}", response_model=user_schema.UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    return user_controller.get_user(db, user_id)
+def get_user(user_id: int, db: Session = Depends(get_db), current_user: user_db.User = Depends(get_current_user)):
+    return user_controller.get_user(db, user_id, current_user.company_id)
 
 @router.post("/", response_model=user_schema.UserResponse)
 def create_user(user: user_schema.UserCreate, db: Session = Depends(get_db)):
     return user_controller.create_user(db, user)
 
+@router.put("/{user_id}/deactivate", response_model=user_schema.UserResponse)
+def deactivate_user(user_id: int, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return user_controller.deactivate_user(db, user_id, current_user.company_id, current_user)
+
 @router.put("/{user_id}", response_model=user_schema.UserResponse)
-def update_user(user_id: int, updated_user: user_schema.UserUpdate, db: Session = Depends(get_db)):
-    return user_controller.update_user(db, user_id, updated_user)
+def update_user(user_id: int, updated_user: user_schema.UserUpdate, db: Session = Depends(get_db), current_user: user_db.User = Depends(get_current_user)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return user_controller.update_user(db, user_id, updated_user, current_user.company_id)
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
-    return user_controller.delete_user(db, user_id)
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: user_db.User = Depends(get_current_user)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return user_controller.delete_user(db, user_id, current_user.company_id)
 
 @router.post("/login", response_model=user_schema.Token)
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -64,7 +98,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(data={"sub": user.email, "role": user.role, "name": user.name})
+    access_token = create_access_token(data={"sub": user.email, "role": user.role, "name": user.name, "company_id": user.company_id})
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/reset-password")

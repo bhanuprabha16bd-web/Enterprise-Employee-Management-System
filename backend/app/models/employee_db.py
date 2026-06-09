@@ -10,10 +10,12 @@ class Employee(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     role = Column(String, nullable=False)
     department_id = Column(Integer, ForeignKey("departments.id"))
+    company_id = Column(Integer, ForeignKey("companies.id"))
     status = Column(String, default="Active")
     joinDate = Column(String)
     avatar = Column(String)
     phone = Column(String)
     location = Column(String)
 
-    department = relationship("Department", back_populates="employees")
+    department = relationship("app.models.department_db.Department", back_populates="employees")
+    company = relationship("app.models.company_db.Company", back_populates="employees")

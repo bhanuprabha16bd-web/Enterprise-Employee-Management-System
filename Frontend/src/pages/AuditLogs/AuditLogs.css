@@ -1,0 +1,86 @@
+.auditlogs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.page-title {
+  font-size: 28px;
+  margin: 0;
+}
+
+.page-subtitle {
+  color: #7d8a99;
+  margin: 6px 0 0;
+}
+
+.auditlogs-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 280px;
+  gap: 8px;
+}
+
+.search-field input {
+  border: none;
+  outline: none;
+  min-width: 0;
+  width: 100%;
+  font-size: 14px;
+}
+
+.auditlogs-table-container {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 16px 45px rgba(15, 23, 42, 0.08);
+}
+
+.auditlogs-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.auditlogs-table th,
+.auditlogs-table td {
+  text-align: left;
+  padding: 18px 16px;
+}
+
+.auditlogs-table thead {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.auditlogs-table tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.auditlogs-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.auditlogs-loading,
+.auditlogs-empty {
+  color: #475569;
+  padding: 32px 16px;
+  text-align: center;
+}

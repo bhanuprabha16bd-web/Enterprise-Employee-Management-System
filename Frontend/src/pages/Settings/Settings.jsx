@@ -380,7 +380,7 @@ const Settings = () => {
       <div className="page-header">
         <div>
           <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Manage your account preferences and system configuration.</p>
+          
         </div>
       </div>
 
