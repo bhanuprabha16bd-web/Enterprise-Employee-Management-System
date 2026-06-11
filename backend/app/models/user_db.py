@@ -21,6 +21,8 @@ class User(Base):
 
     company_id = Column(Integer, ForeignKey("companies.id"))
 
+    deactivated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     website = Column(String)
 
     company = relationship("app.models.company_db.Company", back_populates="users")

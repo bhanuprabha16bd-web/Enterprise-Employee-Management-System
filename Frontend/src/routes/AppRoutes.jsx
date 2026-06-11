@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Welcome from '../pages/Welcome/Welcome';
 import Login from '../pages/Login/Login';
 import ForgotPassword from '../pages/Login/ForgotPassword';
+import AccountDeactivated from '../pages/Login/AccountDeactivated';
 import MainLayout from '../components/layout/MainLayout';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import Users from '../pages/Users/Users';
@@ -20,6 +21,7 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/deactivated" element={<AccountDeactivated />} />
       <Route path="/app" element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route index element={<Dashboard />} />
@@ -37,7 +39,7 @@ const AppRoutes = () => {
           <Route path="members" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<Members />} />
           </Route>
-          <Route path="company" element={<ProtectedRoute />}>
+          <Route path="company" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<CompanyDetails />} />
           </Route>
           <Route path="settings" element={<ProtectedRoute />}>

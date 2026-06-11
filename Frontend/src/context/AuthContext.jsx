@@ -13,7 +13,13 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({ email: payload.sub, role: payload.role, name: payload.name });
+        setUser({
+          email: payload.sub,
+          role: payload.role,
+          name: payload.name,
+          status: payload.status ?? 'Active',
+          company_id: payload.company_id ?? null,
+        });
       } catch (error) {
         console.error("Invalid token:", error);
         logout();

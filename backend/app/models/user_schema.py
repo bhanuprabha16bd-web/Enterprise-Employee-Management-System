@@ -55,6 +55,29 @@ class InvitationCreate(BaseModel):
     email: EmailStr
     role: str | None = "Employee"
 
+
+class ReactivationRequestCreate(BaseModel):
+    reason: str | None = ""
+
+
+class ReactivationRequestUpdate(BaseModel):
+    status: str
+
+
+class ReactivationRequestResponse(BaseModel):
+    id: int
+    user_id: int
+    company_id: int
+    status: str
+    reason: str | None = None
+    user_name: str | None = None
+    user_email: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class InvitationResponse(BaseModel):
     id: int
     email: EmailStr

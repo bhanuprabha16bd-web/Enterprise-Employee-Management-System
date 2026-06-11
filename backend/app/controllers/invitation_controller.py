@@ -72,3 +72,20 @@ def revoke_invitation(db, invitation_id: int, company_id: int, admin_user: user_
         admin_user.company_id,
     )
     return {"message": "Invitation revoked successfully"}
+
+
+def verify_invitation(db, token: str):
+    invitation = db.query(invitation_db.Invitation).filter(
+        invitation_db.Invitation.token == token,
+        invitation_db.Invitation.status == "Pending",
+    ).first()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invalid or expired invitation link")
+    
+    if invitation.expires_at < datetime.utcnow():
+        invitation.status = "Expired"
+        db.commit()
+        raise HTTPException(status_code=400, detail="Invitation link has expired")
+
+    return invitation

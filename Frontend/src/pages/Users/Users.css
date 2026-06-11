@@ -92,6 +92,100 @@
   color: var(--text-h, #1e293b);
 }
 
+.invite-user-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(360px, 1.4fr);
+  gap: 20px;
+  align-items: end;
+  background: var(--bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.invite-user-copy h2 {
+  margin: 0 0 6px;
+  color: var(--text-h, #1e293b);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.invite-user-copy p {
+  margin: 0;
+  color: var(--text, #64748b);
+  font-size: 13px;
+}
+
+.invite-user-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, 180px) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.invite-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.invite-field label {
+  color: var(--text-h, #1e293b);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.invite-field input,
+.invite-field select,
+.created-invite-link input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg, #ffffff);
+  color: var(--text-h, #1e293b);
+  font: inherit;
+}
+
+.invite-field select {
+  cursor: pointer;
+}
+
+.invite-field input:focus,
+.invite-field select:focus,
+.created-invite-link input:focus {
+  outline: none;
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px var(--accent-bg, rgba(99, 102, 241, 0.1));
+}
+
+.invite-create-btn {
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.created-invite-link {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.created-invite-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-h, #1e293b);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* Stats Cards */
 .emp-stats-grid {
   display: grid;
@@ -436,6 +530,17 @@
 }
 
 @media (max-width: 1024px) {
+  .invite-user-panel,
+  .invite-user-form,
+  .created-invite-link {
+    grid-template-columns: 1fr;
+  }
+
+  .invite-create-btn,
+  .created-invite-link .btn-outline-primary {
+    justify-content: center;
+  }
+
   .profile-preview {
     position: fixed;
     top: 0;

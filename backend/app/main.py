@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 from app.database.config import engine, Base
-from app.models import user_db, department_db, employee_db, role_request_db, company_db, audit_log_db, invitation_db
+from app.models import user_db, department_db, employee_db, role_request_db, company_db, audit_log_db, invitation_db, reactivation_request_db
 from app.routes import user_routes, employee_routes, department_routes, company_routes, audit_routes, analytics_routes
 
 
@@ -18,15 +18,17 @@ def ensure_audit_log_table():
 
 ensure_audit_log_table()
 
-def ensure_user_status_column():
+def ensure_user_columns():
     inspector = inspect(engine)
     if 'users' in inspector.get_table_names():
         existing_columns = {col['name'] for col in inspector.get_columns('users')}
-        if 'status' not in existing_columns:
-            with engine.begin() as conn:
+        with engine.begin() as conn:
+            if 'status' not in existing_columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN status VARCHAR DEFAULT 'Active'"))
+            if 'deactivated_by' not in existing_columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN deactivated_by INTEGER"))
 
-ensure_user_status_column()
+ensure_user_columns()
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Backend API")

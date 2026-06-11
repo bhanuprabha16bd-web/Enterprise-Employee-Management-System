@@ -37,25 +37,33 @@ const Header = ({ toggleSidebar }) => {
   }, []);
 
   useEffect(() => {
-    const fetchRoleRequestsForNotifications = async () => {
-      if (user?.role === 'Admin' && !fetchedRoleRequestsRef.current) {
-        try {
-          const res = await api.get('/users/role-requests');
-          if (res.data && res.data.length > 0) {
-            // Check if we already have notifications to avoid duplicates on fast re-renders
-            if (notifications.length === 0) {
-              res.data.forEach(req => {
-                addNotification(`New role request from ${req.user_name}`, 'info');
-              });
-            }
-          }
-          fetchedRoleRequestsRef.current = true;
-        } catch (error) {
-          console.error("Failed to fetch role requests for notifications", error);
+    const fetchRequestsForNotifications = async () => {
+      if (user?.role !== 'Admin' || fetchedRoleRequestsRef.current) return;
+
+      try {
+        const [roleRes, reactivationRes] = await Promise.all([
+          api.get('/users/role-requests'),
+          api.get('/users/reactivation-requests/admin'),
+        ]);
+
+        const messages = [];
+        (roleRes.data || []).forEach((req) => {
+          messages.push(`New role request from ${req.user_name}`);
+        });
+        (reactivationRes.data || []).forEach((req) => {
+          messages.push(`Reactivation request from ${req.user_name || req.user_email || 'a deactivated user'}`);
+        });
+
+        if (messages.length > 0 && notifications.length === 0) {
+          messages.forEach((message) => addNotification(message, 'info'));
         }
+        fetchedRoleRequestsRef.current = true;
+      } catch (error) {
+        console.error('Failed to fetch approval notifications', error);
       }
     };
-    fetchRoleRequestsForNotifications();
+
+    fetchRequestsForNotifications();
   }, [user, addNotification, notifications.length]);
 
   return (

@@ -46,15 +46,43 @@ def revoke_invitation(invitation_id: int, current_user: user_db.User = Depends(g
         raise HTTPException(status_code=403, detail="Not authorized")
     return invitation_controller.revoke_invitation(db, invitation_id, current_user.company_id, current_user)
 
+@router.get("/invitations/verify/{token}", response_model=user_schema.InvitationResponse)
+def verify_invitation(token: str, db: Session = Depends(get_db)):
+    return invitation_controller.verify_invitation(db, token)
+
 @router.post("/request-role")
 def request_role_change(request_data: user_schema.RoleRequestCreate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
     return user_controller.request_admin_role(db, request_data, current_user)
+
+
+@router.post("/reactivation-requests", response_model=user_schema.ReactivationRequestResponse)
+def create_reactivation_request(request_data: user_schema.ReactivationRequestCreate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return user_controller.create_reactivation_request(db, request_data, current_user)
+
+
+@router.get("/reactivation-requests", response_model=list[user_schema.ReactivationRequestResponse])
+def get_reactivation_requests(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return user_controller.get_reactivation_requests(db, current_user)
+
+
+@router.get("/reactivation-requests/admin", response_model=list[user_schema.ReactivationRequestResponse])
+def get_reactivation_requests_for_admin(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != 'Admin':
+        raise HTTPException(status_code=403, detail='Not authorized')
+    return user_controller.get_reactivation_requests_for_admin(db, current_user)
+
+
+@router.put("/reactivation-requests/{request_id}")
+def update_reactivation_request(request_id: int, status_update: user_schema.ReactivationRequestUpdate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != 'Admin':
+        raise HTTPException(status_code=403, detail='Not authorized')
+    return user_controller.update_reactivation_request(db, request_id, status_update, current_user)
 
 @router.get("/role-requests", response_model=list[user_schema.RoleRequestResponse])
 def get_role_requests(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    return user_controller.get_role_requests(db, current_user.email)
+    return user_controller.get_role_requests(db, current_user)
 
 @router.put("/role-requests/{request_id}")
 def update_role_request(request_id: int, status_update: user_schema.RoleRequestUpdate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -98,7 +126,13 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(data={"sub": user.email, "role": user.role, "name": user.name, "company_id": user.company_id})
+    access_token = create_access_token(data={
+        "sub": user.email,
+        "role": user.role,
+        "name": user.name,
+        "status": user.status,
+        "company_id": user.company_id,
+    })
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/reset-password")

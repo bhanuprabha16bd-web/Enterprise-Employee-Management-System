@@ -25,4 +25,9 @@ export const userService = {
     const response = await api.put(`/users/${userId}/deactivate`);
     return response.data;
   },
+
+  verifyInvitation: async (token) => {
+    const response = await api.get(`/users/invitations/verify/${token}`);
+    return response.data;
+  },
 };

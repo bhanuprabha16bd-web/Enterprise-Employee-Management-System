@@ -51,12 +51,12 @@ const Sidebar = ({ isOpen }) => {
               <Users size={20} />
               <span>Users</span>
             </NavLink>
+            <NavLink to="/app/company" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <Briefcase size={20} />
+              <span>Company</span>
+            </NavLink>
           </>
         )}
-        <NavLink to="/app/company" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
-          <Briefcase size={20} />
-          <span>Company</span>
-        </NavLink>
         <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
           <Settings size={20} />
           <span>Settings</span>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Link2, Copy, Trash2, UserMinus, Users } from 'lucide-react';
+import { Copy, Link2, Trash2, UserMinus, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
@@ -11,6 +11,8 @@ const Members = () => {
   const [members, setMembers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('User');
+  const [createdInviteLink, setCreatedInviteLink] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchMembers = async () => {
@@ -61,17 +63,33 @@ const Members = () => {
     }
   };
 
+  const handleCopyCreatedLink = async () => {
+    if (!createdInviteLink) return;
+    try {
+      await navigator.clipboard.writeText(createdInviteLink);
+      toast.success('Invitation link copied');
+    } catch (error) {
+      toast.error('Copy failed');
+    }
+  };
+
   const handleInviteSubmit = async (event) => {
     event.preventDefault();
-    if (!inviteEmail) {
+    if (!inviteEmail.trim()) {
       toast.error('Enter an email address');
       return;
     }
     setSubmitting(true);
+    setCreatedInviteLink('');
     try {
-      await userService.createInvitation({ email: inviteEmail });
+      const invite = await userService.createInvitation({
+        email: inviteEmail.trim(),
+        role: inviteRole
+      });
+      setCreatedInviteLink(invitationLink(invite.token));
       toast.success('Invitation created successfully');
       setInviteEmail('');
+      setInviteRole('User');
       fetchInvitations();
     } catch (error) {
       console.error('Invitation error', error);
@@ -120,20 +138,48 @@ const Members = () => {
           </div>
 
           <form className="invite-form" onSubmit={handleInviteSubmit}>
-            <label>Email address</label>
             <div className="invite-input-row">
-              <input
-                type="email"
-                placeholder="user@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-              />
+              <div className="invite-field">
+                <label>Email address</label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="invite-field invite-role-field">
+                <label>Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  required
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="User">User</option>
+                </select>
+              </div>
+
               <button type="submit" className="btn-primary" disabled={submitting}>
-                <Plus size={16} /> {submitting ? 'Creating...' : 'Create invite'}
+                <UserPlus size={16} /> {submitting ? 'Creating...' : 'Create Invite'}
               </button>
             </div>
           </form>
+
+          {createdInviteLink && (
+            <div className="generated-link-display">
+              <div className="generated-link-label">
+                <Link2 size={16} />
+                <span>Generated invite link</span>
+              </div>
+              <input type="text" value={createdInviteLink} readOnly aria-label="Generated invite link" />
+              <button type="button" className="icon-button" onClick={handleCopyCreatedLink}>
+                <Copy size={16} /> Copy Link
+              </button>
+            </div>
+          )}
 
           <div className="panel-stats">
             <div>

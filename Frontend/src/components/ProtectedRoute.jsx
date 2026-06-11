@@ -5,12 +5,14 @@ const ProtectedRoute = ({ allowedRoles }) => {
   const { user, token } = useAuth();
 
   if (!token) {
-    // Not logged in
     return <Navigate to="/login" replace />;
   }
 
+  if (user?.status === 'Inactive') {
+    return <Navigate to="/deactivated" replace />;
+  }
+
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    // Logged in but not allowed
     return <Navigate to="/app" replace />;
   }
 

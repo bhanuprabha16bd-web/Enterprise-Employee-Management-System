@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { 
   Search, 
@@ -8,8 +8,9 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Users as UsersIcon, 
-  UserCheck, 
-  UserX,
+  UserPlus,
+  Copy,
+  Link2,
   Briefcase,
   Mail,
   Phone,
@@ -20,9 +21,12 @@ import {
 } from 'lucide-react';
 import './Users.css';
 import { employeeService } from '../../services/employeeService';
+import { userService } from '../../services/userService';
 import { useNotification } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 
 const Users = () => {
+  const { user } = useAuth();
   const [currentCompany, setCurrentCompany] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -41,6 +45,12 @@ const Users = () => {
     status: 'Active', phone: '', location: '',
     joinDate: new Date().toISOString().split('T')[0]
   });
+  const [inviteData, setInviteData] = useState({
+    email: '',
+    role: 'User'
+  });
+  const [createdInviteLink, setCreatedInviteLink] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
   const [touchedFields, setTouchedFields] = useState({});
 
   const { addNotification } = useNotification();
@@ -235,6 +245,43 @@ setCurrentCompany(companyData);
     });
   };
 
+  const buildInvitationLink = (token) => `${window.location.origin}/signup?token=${token}`;
+
+  const handleInviteSubmit = async (e) => {
+    e.preventDefault();
+    if (!inviteData.email.trim()) {
+      toast.error('Enter an email address');
+      return;
+    }
+
+    setInviteLoading(true);
+    setCreatedInviteLink('');
+    try {
+      const invite = await userService.createInvitation({
+        email: inviteData.email.trim(),
+        role: inviteData.role
+      });
+      setCreatedInviteLink(buildInvitationLink(invite.token));
+      setInviteData({ email: '', role: 'User' });
+      toast.success('Invitation created successfully');
+    } catch (error) {
+      console.error('Invitation error:', error);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    if (!createdInviteLink) return;
+    try {
+      await navigator.clipboard.writeText(createdInviteLink);
+      toast.success('Invitation link copied');
+    } catch (error) {
+      console.error('Copy failed:', error);
+      toast.error('Copy failed');
+    }
+  };
+
   return (
     <div className="employees-page">
       
@@ -254,6 +301,60 @@ setCurrentCompany(companyData);
           <span>Add Employee</span>
         </button>
       </div>
+
+      {user?.role === 'Admin' && (
+        <section className="invite-user-panel">
+          <div className="invite-user-copy">
+            <h2>Invite a Team Member</h2>
+            <p>Create an invite link using an email address and role.</p>
+          </div>
+
+          <form className="invite-user-form" onSubmit={handleInviteSubmit}>
+            <div className="invite-field">
+              <label>Email address</label>
+              <input
+                type="email"
+                placeholder="team@example.com"
+                value={inviteData.email}
+                onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="invite-field invite-role-field">
+              <label>Role</label>
+              <select
+                value={inviteData.role}
+                onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
+                required
+              >
+                <option value="Admin">Admin</option>
+                <option value="User">User</option>
+              </select>
+            </div>
+
+            <button type="submit" className="btn-primary invite-create-btn" disabled={inviteLoading}>
+              <UserPlus size={18} />
+              <span>{inviteLoading ? 'Creating...' : 'Create Invite'}</span>
+            </button>
+          </form>
+
+          {createdInviteLink && (
+            <div className="created-invite-link">
+              <div className="created-invite-label">
+                <Link2 size={16} />
+                <span>Invite link</span>
+              </div>
+              <input type="text" value={createdInviteLink} readOnly aria-label="Created invitation link" />
+              <button type="button" className="btn-outline-primary" onClick={handleCopyInviteLink}>
+                <Copy size={16} />
+                <span>Copy Link</span>
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
       <div className="employees-content">
         
         <div className="employees-list-container">

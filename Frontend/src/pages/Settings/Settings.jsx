@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { User, Shield, Bell, Moon, Sun, Save, UserPlus, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -48,33 +48,48 @@ const Settings = () => {
   });
 
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [pendingReactivationRequests, setPendingReactivationRequests] = useState([]);
   const [fetchingRequests, setFetchingRequests] = useState(false);
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     if (user?.role !== 'Admin') return;
     setFetchingRequests(true);
     try {
-      const response = await api.get('/users/role-requests');
-      setPendingRequests(response.data);
-    } catch (error) {
+      const [roleResponse, reactivationResponse] = await Promise.all([
+        api.get('/users/role-requests'),
+        api.get('/users/reactivation-requests/admin')
+      ]);
+      setPendingRequests(roleResponse.data || []);
+      setPendingReactivationRequests(reactivationResponse.data || []);
+    } catch {
       // Handled by api interceptor
     } finally {
       setFetchingRequests(false);
     }
-  };
+  }, [user?.role]);
 
   useEffect(() => {
     if (activeTab === 'approvals') {
-      fetchRequests();
+      Promise.resolve().then(fetchRequests);
     }
-  }, [activeTab]);
+  }, [activeTab, fetchRequests]);
 
   const handleApproval = async (id, status) => {
     try {
       const response = await api.put(`/users/role-requests/${id}`, { status });
       toast.success(response.data.message || `Request ${status} successfully`);
       fetchRequests();
-    } catch (error) {
+    } catch {
+      // Handled by api interceptor
+    }
+  };
+
+  const handleReactivationApproval = async (id, status) => {
+    try {
+      const response = await api.put(`/users/reactivation-requests/${id}`, { status });
+      toast.success(response.data.message || `Reactivation request ${status.toLowerCase()} successfully`);
+      fetchRequests();
+    } catch {
       // Handled by api interceptor
     }
   };
@@ -115,7 +130,7 @@ const Settings = () => {
       });
       toast.success(response.data.message || 'Role request submitted successfully!');
       setRoleRequestData({ currentPassword: '', adminEmail: '' });
-    } catch (error) {
+    } catch {
       // API interceptor handles error toasts
     } finally {
       setLoading(false);
@@ -339,32 +354,66 @@ const Settings = () => {
             <h2>Role Approvals</h2>
             <p className="pane-subtitle">Manage pending role upgrade requests.</p>
             
-            <div className="requests-container" style={{ marginTop: '24px' }}>
+            <div className="requests-container" style={{ marginTop: '24px', display: 'grid', gap: '18px' }}>
               {fetchingRequests ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading requests...</div>
-              ) : pendingRequests.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
-                  No pending requests found.
-                </div>
               ) : (
-                <div className="requests-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {pendingRequests.map(req => (
-                    <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px' }}>
-                      <div className="req-info">
-                        <h4 style={{ margin: '0 0 4px 0' }}>{req.user_name}</h4>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{req.user_email}</div>
+                <>
+                  <section style={{ display: 'grid', gap: '12px' }}>
+                    <h3 style={{ margin: 0 }}>Role Upgrade Requests</h3>
+                    {pendingRequests.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                        No pending role requests found.
                       </div>
-                      <div className="req-actions" style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn-primary btn-sm" onClick={() => handleApproval(req.id, 'Approved')} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <CheckCircle size={16} /> Approve
-                        </button>
-                        <button className="btn-outline-primary btn-sm" onClick={() => handleApproval(req.id, 'Rejected')} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
-                          <XCircle size={16} /> Reject
-                        </button>
+                    ) : (
+                      pendingRequests.map((req) => (
+                        <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', gap: '12px' }}>
+                          <div className="req-info">
+                            <h4 style={{ margin: '0 0 4px 0' }}>{req.user_name}</h4>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{req.user_email}</div>
+                          </div>
+                          <div className="req-actions" style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn-primary btn-sm" onClick={() => handleApproval(req.id, 'Approved')} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle size={16} /> Approve
+                            </button>
+                            <button className="btn-outline-primary btn-sm" onClick={() => handleApproval(req.id, 'Rejected')} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                              <XCircle size={16} /> Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </section>
+
+                  <section style={{ display: 'grid', gap: '12px' }}>
+                    <h3 style={{ margin: 0 }}>Reactivation Requests</h3>
+                    {pendingReactivationRequests.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                        No pending reactivation requests found.
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ) : (
+                      pendingReactivationRequests.map((req) => (
+                        <div key={req.id} style={{ display: 'grid', gap: '6px', background: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <div>
+                              <h4 style={{ margin: '0 0 4px 0' }}>{req.user_name || req.user_email || 'Deactivated user'}</h4>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{req.reason || 'No reason provided.'}</div>
+                            </div>
+                            <div className="req-actions" style={{ display: 'flex', gap: '8px' }}>
+                              <button className="btn-primary btn-sm" onClick={() => handleReactivationApproval(req.id, 'Approved')} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <CheckCircle size={16} /> Approve
+                              </button>
+                              <button className="btn-outline-primary btn-sm" onClick={() => handleReactivationApproval(req.id, 'Rejected')} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                                <XCircle size={16} /> Reject
+                              </button>
+                            </div>
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Submitted: {new Date(req.created_at).toLocaleString()}</div>
+                        </div>
+                      ))
+                    )}
+                  </section>
+                </>
               )}
             </div>
           </div>
