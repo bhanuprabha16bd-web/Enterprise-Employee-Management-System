@@ -33,15 +33,15 @@ const Sidebar = ({ isOpen }) => {
           <Users size={20} />
           <span>Employees</span>
         </NavLink>
+        <NavLink to="/app/attendance-leave" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+          <CalendarCheck size={20} />
+          <span>Attendance & Leave</span>
+        </NavLink>
         {user?.role === 'Admin' && (
           <>
             <NavLink to="/app/departments" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <Building2 size={20} />
               <span>Departments</span>
-            </NavLink>
-            <NavLink to="/app/attendance" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
-              <CalendarCheck size={20} />
-              <span>Attendance</span>
             </NavLink>
             <NavLink to="/app/audit-logs" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <ListChecks size={20} />

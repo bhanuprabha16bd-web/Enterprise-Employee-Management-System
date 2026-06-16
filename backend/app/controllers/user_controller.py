@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException
 from app.controllers.audit_controller import create_audit_log
-from app.models import user_db, user_schema, role_request_db, reactivation_request_db
+from app.models import user_db, user_schema, role_request_db, reactivation_request_db, attendance_request_db, attendance_request_schema
 
 COMPANY_NAME_MAP = {
     "company inc": "Company Inc",
@@ -356,3 +356,98 @@ def update_role_request(db: Session, request_id: int, status_update: user_schema
     from app.controllers.audit_controller import create_audit_log
     create_audit_log(db, event_type, description, admin_user.id, admin_user.company_id)
     return {"message": f"Role request {status.lower()} successfully"}
+
+def create_attendance_request(db: Session, current_user: user_db.User):
+    existing = db.query(attendance_request_db.AttendanceRequest).filter(
+        attendance_request_db.AttendanceRequest.user_id == current_user.id,
+        attendance_request_db.AttendanceRequest.company_id == current_user.company_id
+    ).first()
+    if existing:
+        return existing
+        
+    request = attendance_request_db.AttendanceRequest(
+        user_id=current_user.id,
+        company_id=current_user.company_id,
+        status="Pending"
+    )
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    
+    create_audit_log(
+        db,
+        "Attendance Access Requested",
+        f"User '{current_user.email}' requested attendance access",
+        current_user.id,
+        current_user.company_id,
+    )
+    return request
+
+def get_attendance_request(db: Session, current_user: user_db.User):
+    request = db.query(attendance_request_db.AttendanceRequest).filter(
+        attendance_request_db.AttendanceRequest.user_id == current_user.id,
+        attendance_request_db.AttendanceRequest.company_id == current_user.company_id
+    ).first()
+    if not request:
+        raise HTTPException(status_code=404, detail="Attendance request not found")
+    return request
+
+def get_attendance_requests_for_admin(db: Session, admin_user: user_db.User):
+    requests = (
+        db.query(attendance_request_db.AttendanceRequest, user_db.User)
+        .join(user_db.User, user_db.User.id == attendance_request_db.AttendanceRequest.user_id)
+        .filter(
+            attendance_request_db.AttendanceRequest.company_id == admin_user.company_id,
+            attendance_request_db.AttendanceRequest.status == "Pending",
+        )
+        .order_by(attendance_request_db.AttendanceRequest.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "id": req.id,
+            "user_id": req.user_id,
+            "company_id": req.company_id,
+            "status": req.status,
+            "created_at": req.created_at,
+            "updated_at": req.updated_at,
+            "user_name": user.name,
+            "user_email": user.email,
+        }
+        for req, user in requests
+    ]
+
+def update_attendance_request(db: Session, request_id: int, status_update: attendance_request_schema.AttendanceRequestUpdate, admin_user: user_db.User):
+    req = db.query(attendance_request_db.AttendanceRequest).filter(
+        attendance_request_db.AttendanceRequest.id == request_id,
+        attendance_request_db.AttendanceRequest.company_id == admin_user.company_id
+    ).first()
+    
+    if not req:
+        raise HTTPException(status_code=404, detail="Attendance request not found")
+        
+    if req.status != "Pending":
+        raise HTTPException(status_code=400, detail="Request already processed")
+        
+    user = db.query(user_db.User).filter(
+        user_db.User.id == req.user_id,
+        user_db.User.company_id == admin_user.company_id
+    ).first()
+    
+    status = status_update.status
+    if status == "Approved":
+        req.status = "Approved"
+        if user:
+            user.attendance_access = True
+        event_type = "Attendance Access Approved"
+        description = f"Admin '{admin_user.email}' approved attendance access for '{user.email if user else 'Unknown'}'"
+    elif status == "Rejected":
+        req.status = "Rejected"
+        event_type = "Attendance Access Rejected"
+        description = f"Admin '{admin_user.email}' rejected attendance access for '{user.email if user else 'Unknown'}'"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    db.commit()
+    create_audit_log(db, event_type, description, admin_user.id, admin_user.company_id)
+    return {"message": f"Attendance request {status.lower()} successfully"}

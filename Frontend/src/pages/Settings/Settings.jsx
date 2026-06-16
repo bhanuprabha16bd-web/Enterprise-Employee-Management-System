@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { User, Shield, Bell, Moon, Sun, Save, UserPlus, CheckCircle, XCircle } from 'lucide-react';
+import { User, Shield, Bell, Moon, Sun, Save, UserPlus, CheckCircle, XCircle, Plane } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -49,18 +49,21 @@ const Settings = () => {
 
   const [pendingRequests, setPendingRequests] = useState([]);
   const [pendingReactivationRequests, setPendingReactivationRequests] = useState([]);
+  const [pendingLeaveRequests, setPendingLeaveRequests] = useState([]);
   const [fetchingRequests, setFetchingRequests] = useState(false);
 
   const fetchRequests = useCallback(async () => {
     if (user?.role !== 'Admin') return;
     setFetchingRequests(true);
     try {
-      const [roleResponse, reactivationResponse] = await Promise.all([
+      const [roleResponse, reactivationResponse, leaveResponse] = await Promise.all([
         api.get('/users/role-requests'),
-        api.get('/users/reactivation-requests/admin')
+        api.get('/users/reactivation-requests/admin'),
+        api.get('/leaves/admin')
       ]);
       setPendingRequests(roleResponse.data || []);
       setPendingReactivationRequests(reactivationResponse.data || []);
+      setPendingLeaveRequests((leaveResponse.data || []).filter((leave) => leave.status === 'Pending'));
     } catch {
       // Handled by api interceptor
     } finally {
@@ -92,6 +95,21 @@ const Settings = () => {
     } catch {
       // Handled by api interceptor
     }
+  };
+
+  const handleLeaveApproval = async (id, status) => {
+    try {
+      await api.put(`/leaves/${id}`, { status });
+      toast.success(`Leave request ${status.toLowerCase()} successfully`);
+      fetchRequests();
+    } catch {
+      // Handled by api interceptor
+    }
+  };
+
+  const formatLeaveDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const handleProfileSubmit = (e) => {
@@ -351,14 +369,51 @@ const Settings = () => {
       case 'approvals':
         return (
           <div className="settings-pane slide-in">
-            <h2>Role Approvals</h2>
-            <p className="pane-subtitle">Manage pending role upgrade requests.</p>
+            <h2>Approvals</h2>
+            <p className="pane-subtitle">Manage pending leave, role, and reactivation requests.</p>
             
             <div className="requests-container" style={{ marginTop: '24px', display: 'grid', gap: '18px' }}>
               {fetchingRequests ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Loading requests...</div>
               ) : (
                 <>
+                  <section className="pending-leave-summary">
+                    <div className="pending-leave-heading">
+                      <Plane size={18} />
+                      <h3>Pending Leave Requests</h3>
+                    </div>
+                    <p>
+                      {pendingLeaveRequests.length === 0
+                        ? `No pending leave requests for ${user?.company_name || user?.company || 'your company'}.`
+                        : `${pendingLeaveRequests.length} pending leave request${pendingLeaveRequests.length === 1 ? '' : 's'} for ${user?.company_name || user?.company || 'your company'}.`}
+                    </p>
+                    {pendingLeaveRequests.length > 0 && (
+                      <div className="pending-leave-list">
+                        {pendingLeaveRequests.map((leave) => (
+                          <article className="pending-leave-item" key={leave.id}>
+                            <div className="pending-leave-details">
+                              <h4>{leave.user_name || 'Unknown User'}</h4>
+                              <div className="pending-leave-meta">
+                                <span>{leave.department || 'Unassigned'}</span>
+                                <span>{leave.leave_type}</span>
+                                <span>{formatLeaveDate(leave.start_date)} to {formatLeaveDate(leave.end_date)}</span>
+                              </div>
+                              {leave.reason && <p className="pending-leave-reason">{leave.reason}</p>}
+                            </div>
+                            <div className="req-actions pending-leave-actions">
+                              <button className="btn-primary btn-sm" onClick={() => handleLeaveApproval(leave.id, 'Approved')}>
+                                <CheckCircle size={16} /> Approve
+                              </button>
+                              <button className="btn-outline-primary btn-sm danger-action" onClick={() => handleLeaveApproval(leave.id, 'Rejected')}>
+                                <XCircle size={16} /> Reject
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
                   <section style={{ display: 'grid', gap: '12px' }}>
                     <h3 style={{ margin: 0 }}>Role Upgrade Requests</h3>
                     {pendingRequests.length === 0 ? (

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, Menu, Sun, Moon, LogOut, X } from 'lucide-react';
+import { Bell, Menu, Sun, Moon, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -15,10 +15,9 @@ const Header = ({ toggleSidebar }) => {
   const { logout } = useAuth();
   const { user } = useAuth();
   
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, addNotification } = useNotification();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, addNotification, removeNotification } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
-  const fetchedRoleRequestsRef = useRef(false);
   
   const handleLogout = () => {
     logout();
@@ -37,34 +36,123 @@ const Header = ({ toggleSidebar }) => {
   }, []);
 
   useEffect(() => {
-    const fetchRequestsForNotifications = async () => {
-      if (user?.role !== 'Admin' || fetchedRoleRequestsRef.current) return;
+    if (user?.role !== 'Admin') return;
 
+    const fetchRequestsForNotifications = async () => {
       try {
-        const [roleRes, reactivationRes] = await Promise.all([
+        const [roleRes, reactivationRes, attendanceRes, leaveRes] = await Promise.all([
           api.get('/users/role-requests'),
           api.get('/users/reactivation-requests/admin'),
+          api.get('/users/attendance-requests/admin'),
+          api.get('/leaves/admin')
         ]);
 
         const messages = [];
-        (roleRes.data || []).forEach((req) => {
-          messages.push(`New role request from ${req.user_name}`);
-        });
-        (reactivationRes.data || []).forEach((req) => {
-          messages.push(`Reactivation request from ${req.user_name || req.user_email || 'a deactivated user'}`);
+        const pendingAttendanceIds = new Set((attendanceRes.data || []).map((req) => req.id));
+
+        notifications.forEach((notif) => {
+          if (notif.metaData?.type === 'attendance_request' && !pendingAttendanceIds.has(notif.metaData.id)) {
+            removeNotification(notif.id);
+          }
         });
 
-        if (messages.length > 0 && notifications.length === 0) {
-          messages.forEach((message) => addNotification(message, 'info'));
+        (roleRes.data || []).forEach((req) => {
+          const exists = notifications.some((notif) => notif.metaData?.type === 'role_request' && notif.metaData?.id === req.id);
+          if (!exists) {
+            messages.push({
+              text: `New role request from ${req.user_name}`,
+              type: 'info',
+              meta: { type: 'role_request', id: req.id }
+            });
+          }
+        });
+        (reactivationRes.data || []).forEach((req) => {
+          const exists = notifications.some((notif) => notif.metaData?.type === 'reactivation_request' && notif.metaData?.id === req.id);
+          if (!exists) {
+            messages.push({
+              text: `Reactivation request from ${req.user_name || req.user_email || 'a deactivated user'}`,
+              type: 'info',
+              meta: { type: 'reactivation_request', id: req.id, timestamp: req.created_at }
+            });
+          }
+        });
+        (attendanceRes.data || []).forEach((req) => {
+          const exists = notifications.some((notif) => notif.metaData?.type === 'attendance_request' && notif.metaData?.id === req.id);
+          if (!exists) {
+            messages.push({
+              text: `Attendance Access Request`,
+              type: 'info',
+              meta: {
+                type: 'attendance_request',
+                id: req.id,
+                userName: req.user_name,
+                userEmail: req.user_email,
+                timestamp: req.created_at
+              }
+            });
+          }
+        });
+        (leaveRes.data || []).forEach((req) => {
+          if (req.status === 'Pending') {
+            const exists = notifications.some((notif) => notif.metaData?.type === 'leave_request' && notif.metaData?.id === req.id);
+            if (!exists) {
+              messages.push({
+                text: `Leave Request from ${req.user_name || 'Unknown'}`,
+                type: 'info',
+                meta: {
+                  type: 'leave_request',
+                  id: req.id,
+                  userName: req.user_name,
+                  leaveType: req.leave_type,
+                  startDate: req.start_date,
+                  endDate: req.end_date,
+                  reason: req.reason,
+                  timestamp: req.created_at
+                }
+              });
+            }
+          }
+        });
+
+        if (messages.length > 0) {
+          messages.forEach((msg) => addNotification(msg.text, msg.type, msg.meta));
         }
-        fetchedRoleRequestsRef.current = true;
       } catch (error) {
         console.error('Failed to fetch approval notifications', error);
       }
     };
 
     fetchRequestsForNotifications();
-  }, [user, addNotification, notifications.length]);
+    const intervalId = setInterval(fetchRequestsForNotifications, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [user?.role, addNotification, notifications, removeNotification]);
+
+  const handleAttendanceAction = async (e, requestId, status, notifId) => {
+    e.stopPropagation();
+    try {
+      await api.put(`/users/attendance-requests/${requestId}`, { status });
+      toast.success(`Request ${status.toLowerCase()} successfully`);
+      removeNotification(notifId);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update request');
+    }
+  };
+
+  const handleLeaveAction = async (e, leaveId, status, notifId) => {
+    e.stopPropagation();
+    try {
+      await api.put(`/leaves/${leaveId}`, { status });
+      toast.success(`Leave request ${status.toLowerCase()} successfully`);
+      removeNotification(notifId);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update leave request');
+    }
+  };
+
+
 
   return (
     <header className="header">
@@ -105,10 +193,53 @@ const Header = ({ toggleSidebar }) => {
                       className={`notification-item ${notif.read ? 'read' : 'unread'}`}
                       onClick={() => markAsRead(notif.id)}
                     >
-                      <div className="notification-content">
-                        <p>{notif.message}</p>
+                      <div className="notification-content" style={{ width: '100%' }}>
+                        <p style={{ fontWeight: notif.metaData?.type ? '600' : '400' }}>{notif.message}</p>
+                        {notif.metaData?.type === 'attendance_request' && (
+                          <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                            <p><strong>Name:</strong> {notif.metaData.userName || 'Unknown'}</p>
+                            <p><strong>Email:</strong> {notif.metaData.userEmail}</p>
+                            <p><strong>Requested:</strong> {new Date(notif.metaData.timestamp).toLocaleString()}</p>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                              <button 
+                                onClick={(e) => handleAttendanceAction(e, notif.metaData.id, 'Approved', notif.id)}
+                                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', border: 'none', background: 'var(--color-success)', color: 'white', cursor: 'pointer', fontWeight: '500' }}
+                              >
+                                Approve
+                              </button>
+                              <button 
+                                onClick={(e) => handleAttendanceAction(e, notif.metaData.id, 'Rejected', notif.id)}
+                                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', fontWeight: '500' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {notif.metaData?.type === 'leave_request' && (
+                          <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                            <p><strong>Name:</strong> {notif.metaData.userName || 'Unknown'}</p>
+                            <p><strong>Type:</strong> {notif.metaData.leaveType}</p>
+                            <p><strong>Dates:</strong> {notif.metaData.startDate} to {notif.metaData.endDate}</p>
+                            <p><strong>Reason:</strong> {notif.metaData.reason || 'No reason provided'}</p>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                              <button 
+                                onClick={(e) => handleLeaveAction(e, notif.metaData.id, 'Approved', notif.id)}
+                                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', border: 'none', background: 'var(--color-success)', color: 'white', cursor: 'pointer', fontWeight: '500' }}
+                              >
+                                Approve
+                              </button>
+                              <button 
+                                onClick={(e) => handleLeaveAction(e, notif.metaData.id, 'Rejected', notif.id)}
+                                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text)', cursor: 'pointer', fontWeight: '500' }}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         <span className="notification-time">
-                          {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(notif.metaData?.timestamp || notif.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       {!notif.read && <span className="unread-dot"></span>}

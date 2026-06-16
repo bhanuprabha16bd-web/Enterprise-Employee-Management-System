@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database.config import SessionLocal
-from app.models import user_schema, user_db
+from app.models import user_schema, user_db, attendance_request_schema
 from app.controllers import user_controller, invitation_controller
 from app.auth import get_current_user
 
@@ -126,15 +126,42 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    def format_date(dt):
+        if not dt: return None
+        if hasattr(dt, 'isoformat'): return dt.isoformat()
+        return str(dt)
+
     access_token = create_access_token(data={
         "sub": user.email,
         "role": user.role,
         "name": user.name,
         "status": user.status,
         "company_id": user.company_id,
+        "attendance_access": user.attendance_access,
+        "created_at": format_date(user.created_at),
     })
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/reset-password")
 def reset_password(reset_data: user_schema.PasswordReset, db: Session = Depends(get_db)):
     return user_controller.reset_password(db, reset_data)
+
+@router.post("/attendance-requests", response_model=attendance_request_schema.AttendanceRequestResponse)
+def create_attendance_request(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return user_controller.create_attendance_request(db, current_user)
+
+@router.get("/attendance-requests/me", response_model=attendance_request_schema.AttendanceRequestResponse)
+def get_attendance_request(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return user_controller.get_attendance_request(db, current_user)
+
+@router.get("/attendance-requests/admin", response_model=list[attendance_request_schema.AttendanceRequestResponse])
+def get_attendance_requests_for_admin(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != 'Admin':
+        raise HTTPException(status_code=403, detail='Not authorized')
+    return user_controller.get_attendance_requests_for_admin(db, current_user)
+
+@router.put("/attendance-requests/{request_id}")
+def update_attendance_request(request_id: int, status_update: attendance_request_schema.AttendanceRequestUpdate, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != 'Admin':
+        raise HTTPException(status_code=403, detail='Not authorized')
+    return user_controller.update_attendance_request(db, request_id, status_update, current_user)

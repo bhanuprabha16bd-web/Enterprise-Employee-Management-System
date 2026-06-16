@@ -19,6 +19,8 @@ export const AuthProvider = ({ children }) => {
           name: payload.name,
           status: payload.status ?? 'Active',
           company_id: payload.company_id ?? null,
+          attendance_access: payload.attendance_access ?? false,
+          created_at: payload.created_at ?? null,
         });
       } catch (error) {
         console.error("Invalid token:", error);

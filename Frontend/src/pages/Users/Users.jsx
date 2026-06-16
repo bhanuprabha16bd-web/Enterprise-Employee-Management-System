@@ -302,58 +302,7 @@ setCurrentCompany(companyData);
         </button>
       </div>
 
-      {user?.role === 'Admin' && (
-        <section className="invite-user-panel">
-          <div className="invite-user-copy">
-            <h2>Invite a Team Member</h2>
-            <p>Create an invite link using an email address and role.</p>
-          </div>
-
-          <form className="invite-user-form" onSubmit={handleInviteSubmit}>
-            <div className="invite-field">
-              <label>Email address</label>
-              <input
-                type="email"
-                placeholder="team@example.com"
-                value={inviteData.email}
-                onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="invite-field invite-role-field">
-              <label>Role</label>
-              <select
-                value={inviteData.role}
-                onChange={(e) => setInviteData({ ...inviteData, role: e.target.value })}
-                required
-              >
-                <option value="Admin">Admin</option>
-                <option value="User">User</option>
-              </select>
-            </div>
-
-            <button type="submit" className="btn-primary invite-create-btn" disabled={inviteLoading}>
-              <UserPlus size={18} />
-              <span>{inviteLoading ? 'Creating...' : 'Create Invite'}</span>
-            </button>
-          </form>
-
-          {createdInviteLink && (
-            <div className="created-invite-link">
-              <div className="created-invite-label">
-                <Link2 size={16} />
-                <span>Invite link</span>
-              </div>
-              <input type="text" value={createdInviteLink} readOnly aria-label="Created invitation link" />
-              <button type="button" className="btn-outline-primary" onClick={handleCopyInviteLink}>
-                <Copy size={16} />
-                <span>Copy Link</span>
-              </button>
-            </div>
-          )}
-        </section>
-      )}
+      
 
       <div className="employees-content">
         

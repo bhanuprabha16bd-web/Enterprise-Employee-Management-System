@@ -9,6 +9,8 @@ class UserBase(BaseModel):
     bio: str | None = ""
     company_name: str | None = ""
     website: str | None = ""
+    attendance_access: bool = False
+    created_at: datetime | None = None
 
 class UserCreate(UserBase):
     password: str

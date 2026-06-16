@@ -7,7 +7,7 @@ import MainLayout from '../components/layout/MainLayout';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import Users from '../pages/Users/Users';
 import Departments from '../pages/Departments/Departments';
-import Attendance from '../pages/Attendance/Attendance';
+import AttendanceLeave from '../pages/AttendanceLeave/AttendanceLeave';
 import Settings from '../pages/Settings/Settings';
 import CompanyDetails from '../pages/Company/CompanyDetails';
 import AuditLogs from '../pages/AuditLogs/AuditLogs';
@@ -30,8 +30,8 @@ const AppRoutes = () => {
           <Route path="departments" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<Departments />} />
           </Route>
-          <Route path="attendance" element={<ProtectedRoute allowedRoles={['Admin']} />}>
-            <Route index element={<Attendance />} />
+          <Route path="attendance-leave" element={<ProtectedRoute />}>
+            <Route index element={<AttendanceLeave />} />
           </Route>
           <Route path="audit-logs" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<AuditLogs />} />

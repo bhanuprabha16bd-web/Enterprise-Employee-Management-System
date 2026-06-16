@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database.config import Base
 
@@ -24,6 +25,10 @@ class User(Base):
     deactivated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     website = Column(String)
+
+    attendance_access = Column(Boolean, default=False)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     company = relationship("app.models.company_db.Company", back_populates="users")
 

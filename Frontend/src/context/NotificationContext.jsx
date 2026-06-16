@@ -13,15 +13,20 @@ export const useNotification = () => {
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
 
-  const addNotification = useCallback((message, type = 'info') => {
+  const addNotification = useCallback((message, type = 'info', metaData = null) => {
     const newNotification = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random().toString(),
       message,
       type,
       read: false,
-      timestamp: new Date()
+      timestamp: new Date(),
+      metaData
     };
     setNotifications(prev => [newNotification, ...prev]);
+  }, []);
+
+  const removeNotification = useCallback((id) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
   }, []);
 
   const markAsRead = useCallback((id) => {
@@ -45,6 +50,7 @@ export const NotificationProvider = ({ children }) => {
       notifications,
       unreadCount,
       addNotification,
+      removeNotification,
       markAsRead,
       markAllAsRead,
       clearNotifications
