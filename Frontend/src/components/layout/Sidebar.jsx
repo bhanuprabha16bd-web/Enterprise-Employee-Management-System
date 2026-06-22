@@ -13,8 +13,10 @@ import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
 const Sidebar = ({ isOpen }) => {
+  // --- SIDEBAR STATE ---
   const { user } = useAuth();
   
+  // --- SIDEBAR EFFECTS & FUNCTIONS ---
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-logo">
@@ -46,6 +48,10 @@ const Sidebar = ({ isOpen }) => {
             <NavLink to="/app/audit-logs" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <ListChecks size={20} />
               <span>Audit Logs</span>
+            </NavLink>
+            <NavLink to="/app/activity" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <ListChecks size={20} />
+              <span>Activity</span>
             </NavLink>
             <NavLink to="/app/members" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <Users size={20} />

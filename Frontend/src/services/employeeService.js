@@ -114,5 +114,24 @@ export const employeeService = {
   getDashboardAnalytics: async () => {
     const response = await api.get('/analytics/summary');
     return response.data;
+  },
+
+  /**
+   * Transfer an employee to a different department
+   * @param {number} id Employee ID
+   * @param {Object} transferData { to_department_id, reason }
+   */
+  transferEmployee: async (id, transferData) => {
+    const response = await api.post(`/employees/${id}/transfer`, transferData);
+    return response.data;
+  },
+
+  /**
+   * Get department transfer history for an employee
+   * @param {number} id Employee ID
+   */
+  getEmployeeTransfers: async (id) => {
+    const response = await api.get(`/employees/${id}/transfers`);
+    return response.data;
   }
 };

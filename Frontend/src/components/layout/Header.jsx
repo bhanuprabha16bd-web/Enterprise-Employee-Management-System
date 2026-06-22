@@ -10,6 +10,7 @@ import './Header.css';
 
 const Header = ({ toggleSidebar }) => {
   const navigate = useNavigate();
+  // --- HEADER STATE ---
   const { theme, toggleTheme } = useTheme();
   const isDarkMode = theme === 'dark';
   const { logout } = useAuth();
@@ -18,6 +19,8 @@ const Header = ({ toggleSidebar }) => {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearNotifications, addNotification, removeNotification } = useNotification();
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
+  
+  // --- HEADER EFFECTS & FUNCTIONS ---
   
   const handleLogout = () => {
     logout();
@@ -128,6 +131,43 @@ const Header = ({ toggleSidebar }) => {
     return () => clearInterval(intervalId);
   }, [user?.role, addNotification, notifications, removeNotification]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUserNotifications = async () => {
+      try {
+        const res = await api.get('/notifications/');
+        const messages = [];
+        (res.data || []).forEach((req) => {
+          if (!req.is_read) {
+            const exists = notifications.some((notif) => notif.metaData?.type === req.type && notif.metaData?.id === req.id);
+            if (!exists) {
+              messages.push({
+                text: req.message,
+                type: 'info',
+                meta: { type: req.type, id: req.id, timestamp: req.created_at, db_id: req.id }
+              });
+            }
+          }
+        });
+        if (messages.length > 0) {
+          messages.forEach((msg) => addNotification(msg.text, msg.type, msg.meta));
+        }
+      } catch (error) {
+        console.error('Failed to fetch user notifications', error);
+      }
+    };
+
+    fetchUserNotifications();
+    const intervalId = setInterval(fetchUserNotifications, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [user, addNotification, notifications]);
+
+  /**
+   * Handles approval or rejection of attendance access requests directly from notifications.
+   * Removes the notification upon successful processing.
+   */
   const handleAttendanceAction = async (e, requestId, status, notifId) => {
     e.stopPropagation();
     try {
@@ -140,6 +180,10 @@ const Header = ({ toggleSidebar }) => {
     }
   };
 
+  /**
+   * Handles approval or rejection of leave requests directly from notifications.
+   * Removes the notification upon successful processing.
+   */
   const handleLeaveAction = async (e, leaveId, status, notifId) => {
     e.stopPropagation();
     try {
@@ -153,6 +197,26 @@ const Header = ({ toggleSidebar }) => {
   };
 
 
+
+  const handleMarkAsRead = async (notif) => {
+    markAsRead(notif.id);
+    if (notif.metaData?.db_id) {
+      try {
+        await api.put(`/notifications/${notif.metaData.db_id}/read`);
+      } catch (error) {
+        console.error('Failed to mark notification as read in DB', error);
+      }
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    clearNotifications();
+    try {
+      await api.delete('/notifications/');
+    } catch (error) {
+      console.error('Failed to clear notifications in DB', error);
+    }
+  };
 
   return (
     <header className="header">
@@ -180,7 +244,7 @@ const Header = ({ toggleSidebar }) => {
                 <h3>Notifications</h3>
                 <div className="notification-actions">
                   <button onClick={markAllAsRead}>Mark all read</button>
-                  <button onClick={clearNotifications}>Clear</button>
+                  <button onClick={handleClearNotifications}>Clear</button>
                 </div>
               </div>
               <div className="notification-list">
@@ -191,7 +255,7 @@ const Header = ({ toggleSidebar }) => {
                     <div 
                       key={notif.id} 
                       className={`notification-item ${notif.read ? 'read' : 'unread'}`}
-                      onClick={() => markAsRead(notif.id)}
+                      onClick={() => handleMarkAsRead(notif)}
                     >
                       <div className="notification-content" style={{ width: '100%' }}>
                         <p style={{ fontWeight: notif.metaData?.type ? '600' : '400' }}>{notif.message}</p>

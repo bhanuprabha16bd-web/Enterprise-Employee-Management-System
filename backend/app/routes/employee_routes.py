@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.controllers import employee_controller
 from app.models.employee import EmployeeResponse, EmployeeCreate, EmployeeUpdate
+from app.models.department_transfer_schema import DepartmentTransferCreate, DepartmentTransferResponse
 from app.database.config import SessionLocal
 from app.auth import get_current_user
 from typing import List
@@ -38,3 +39,12 @@ def update_employee(employee_id: int, employee: EmployeeUpdate, db: Session = De
 @router.delete("/{employee_id}")
 def delete_employee(employee_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     return employee_controller.delete_employee(db, employee_id, current_user.company_id, current_user.id)
+
+@router.post("/{employee_id}/transfer", response_model=EmployeeResponse)
+def transfer_employee(employee_id: int, transfer_data: DepartmentTransferCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.transfer_employee(db, employee_id, transfer_data, current_user.company_id, current_user.id)
+
+@router.get("/{employee_id}/transfers", response_model=List[DepartmentTransferResponse])
+def get_department_transfers(employee_id: int, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    return employee_controller.get_department_transfers_by_employee(db, employee_id, current_user.company_id)
+

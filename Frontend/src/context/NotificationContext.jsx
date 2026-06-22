@@ -11,7 +11,10 @@ export const useNotification = () => {
 };
 
 export const NotificationProvider = ({ children }) => {
+  // --- NOTIFICATION STATE ---
   const [notifications, setNotifications] = useState([]);
+
+  // --- NOTIFICATION EFFECTS & FUNCTIONS ---
 
   const addNotification = useCallback((message, type = 'info', metaData = null) => {
     const newNotification = {

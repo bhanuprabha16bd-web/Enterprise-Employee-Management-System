@@ -31,6 +31,7 @@ import './Dashboard.css';
 import { employeeService } from '../../services/employeeService';
 
 const Dashboard = () => {
+  // --- DASHBOARD STATE ---
   const [analytics, setAnalytics] = useState({
     total_employees: 0,
     active_employees: 0,
@@ -45,6 +46,7 @@ const Dashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
 
+  // --- DASHBOARD EFFECTS & FUNCTIONS ---
   const fetchAnalytics = async () => {
     try {
       setLoading(true);

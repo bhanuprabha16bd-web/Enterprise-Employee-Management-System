@@ -3,10 +3,12 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
+  // --- AUTH STATE ---
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  // --- AUTH EFFECTS & FUNCTIONS ---
   useEffect(() => {
     // In a real app, you might validate the token with the backend here.
     // For now, we'll just decode the JWT payload to get user info.
@@ -36,7 +38,19 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    if (token) {
+      try {
+        await fetch('http://localhost:8000/users/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      } catch (error) {
+        console.error("Logout API failed:", error);
+      }
+    }
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);

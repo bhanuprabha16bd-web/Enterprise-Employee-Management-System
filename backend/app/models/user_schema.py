@@ -27,6 +27,12 @@ class UserUpdate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    last_login: datetime | None = None
+    last_logout: datetime | None = None
+    last_ip_address: str | None = None
+    last_browser: str | None = None
+    is_new_device_login: bool = False
+    is_new_ip_login: bool = False
 
     class Config:
         from_attributes = True

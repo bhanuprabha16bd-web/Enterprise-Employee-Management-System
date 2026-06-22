@@ -29,8 +29,55 @@ const AttendanceLeave = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
+  // --- ACCESS REQUEST STATE ---
+  const [accessRequestStatus, setAccessRequestStatus] = useState(null);
+
+  useEffect(() => {
+    if (user?.role === 'Admin' || user?.attendance_access) return;
+    
+    /**
+     * Checks if the current non-admin user has access to the attendance tab.
+     * Fetches the status of their access request from the backend.
+     */
+    const fetchAccessStatus = async () => {
+      try {
+        const res = await api.get('/users/attendance-requests/me');
+        setAccessRequestStatus(res.data.status);
+      } catch (err) {
+        if (err.response?.status === 404) {
+          setAccessRequestStatus('None');
+        } else {
+          setAccessRequestStatus('Error');
+        }
+      }
+    };
+    fetchAccessStatus();
+  }, [user]);
+
+  /**
+   * Submits a request to the admin for attendance tab access.
+   * Updates local state to 'Pending' upon success.
+   */
+  const handleRequestAccess = async () => {
+    try {
+      await api.post('/users/attendance-requests');
+      setAccessRequestStatus('Pending');
+      toast.success('Access request sent to admin');
+    } catch (err) {
+      toast.error('Failed to send request');
+    }
+  };
+
   // --- LEAVE EFFECTS & FUNCTIONS ---
+  /**
+   * Fetches leave requests based on user role.
+   * Admins retrieve all company leave requests, while regular users retrieve only their own.
+   */
   const fetchLeaves = useCallback(async () => {
+    if (user?.role !== 'Admin' && !user?.attendance_access) {
+      setLeaveLoading(false);
+      return;
+    }
     try {
       setLeaveLoading(true);
       const url = user?.role === 'Admin' ? '/leaves/admin' : '/leaves/me';
@@ -54,6 +101,10 @@ const AttendanceLeave = () => {
     }
   }, [activeTab, fetchLeaves, user?.role]);
 
+  /**
+   * Handles leave management by allowing admins to approve or reject a leave request.
+   * Refetches leave requests to update the UI after a successful action.
+   */
   const handleAction = async (id, status) => {
     try {
       await api.put(`/leaves/${id}`, { status });
@@ -64,6 +115,10 @@ const AttendanceLeave = () => {
     }
   };
 
+  /**
+   * Submits a new leave request for the current user.
+   * Closes the modal and refreshes the leave list on success.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -94,7 +149,14 @@ const AttendanceLeave = () => {
   // --- ATTENDANCE EFFECTS & FUNCTIONS ---
   useEffect(() => {
     if (activeTab !== 'attendance') return;
+    if (user?.role !== 'Admin' && !user?.attendance_access) {
+      setAttendanceLoading(false);
+      return;
+    }
 
+    /**
+     * Fetches all attendance logs for admins to monitor company-wide attendance.
+     */
     const fetchAdminLogs = async () => {
       try {
         setAttendanceLoading(true);
@@ -108,6 +170,9 @@ const AttendanceLeave = () => {
       }
     };
 
+    /**
+     * Fetches the current user's today's attendance and historical attendance logs.
+     */
     const fetchUserLogs = async () => {
       try {
         setAttendanceLoading(true);
@@ -132,6 +197,10 @@ const AttendanceLeave = () => {
     }
   }, [user?.role, activeTab]);
 
+  /**
+   * Records the user's check-in time for today's attendance.
+   * Updates the UI to show the user as 'Present' or currently working.
+   */
   const handleCheckIn = async () => {
     try {
       const res = await api.post('/attendance/check-in');
@@ -143,6 +212,10 @@ const AttendanceLeave = () => {
     }
   };
 
+  /**
+   * Records the user's check-out time for today's attendance.
+   * Calculates total hours worked and updates the attendance log.
+   */
   const handleCheckOut = async () => {
     try {
       const res = await api.put('/attendance/check-out');
@@ -658,6 +731,32 @@ const AttendanceLeave = () => {
       </div>
     );
   };
+
+  if (user?.role !== 'Admin' && !user?.attendance_access) {
+    return (
+      <div className="attendance-leave-container attendance-page-spaced" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <div className="empty-state table-card" style={{ padding: '40px', textAlign: 'center', width: '100%', maxWidth: '500px', margin: '0 auto' }}>
+          <Clock size={48} color="var(--color-warning)" style={{ marginBottom: '16px', display: 'inline-block' }} />
+          <h2 style={{ marginBottom: '8px' }}>Access Pending</h2>
+          {accessRequestStatus === 'Pending' ? (
+            <p style={{ color: 'var(--color-text-secondary)' }}>Your request is pending admin approval.</p>
+          ) : accessRequestStatus === 'Rejected' ? (
+            <>
+              <p style={{ color: 'var(--color-danger)', marginBottom: '16px' }}>Your access request was rejected.</p>
+              <button onClick={handleRequestAccess} className="btn-primary">Request Again</button>
+            </>
+          ) : accessRequestStatus === 'None' ? (
+            <>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '16px' }}>You need admin approval to view attendance.</p>
+              <button onClick={handleRequestAccess} className="btn-primary">Request Access</button>
+            </>
+          ) : (
+            <p style={{ color: 'var(--color-text-secondary)' }}>Checking access status...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="attendance-leave-container">

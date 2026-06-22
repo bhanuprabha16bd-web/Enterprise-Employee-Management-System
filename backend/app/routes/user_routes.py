@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.database.config import SessionLocal
@@ -117,7 +117,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: user_
     return user_controller.delete_user(db, user_id, current_user.company_id)
 
 @router.post("/login", response_model=user_schema.Token)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     from app.auth import create_access_token
     user = user_controller.authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -126,6 +126,11 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        
+    ip_address = request.client.host if request.client else "Unknown"
+    browser_info = request.headers.get("user-agent", "Unknown")
+    user = user_controller.update_login_activity(db, user, ip_address, browser_info)
+
     def format_date(dt):
         if not dt: return None
         if hasattr(dt, 'isoformat'): return dt.isoformat()
@@ -141,6 +146,10 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         "created_at": format_date(user.created_at),
     })
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+def logout(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return user_controller.logout_user(db, current_user)
 
 @router.post("/reset-password")
 def reset_password(reset_data: user_schema.PasswordReset, db: Session = Depends(get_db)):

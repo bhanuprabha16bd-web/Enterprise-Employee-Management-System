@@ -29,6 +29,13 @@ class User(Base):
     attendance_access = Column(Boolean, default=False)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    last_login = Column(DateTime(timezone=True), nullable=True)
+    last_logout = Column(DateTime(timezone=True), nullable=True)
+    last_ip_address = Column(String, nullable=True)
+    last_browser = Column(String, nullable=True)
+    is_new_device_login = Column(Boolean, default=False)
+    is_new_ip_login = Column(Boolean, default=False)
 
     company = relationship("app.models.company_db.Company", back_populates="users")
 

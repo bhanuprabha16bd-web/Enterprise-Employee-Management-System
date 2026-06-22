@@ -451,3 +451,62 @@ def update_attendance_request(db: Session, request_id: int, status_update: atten
     db.commit()
     create_audit_log(db, event_type, description, admin_user.id, admin_user.company_id)
     return {"message": f"Attendance request {status.lower()} successfully"}
+
+from datetime import datetime
+
+def update_login_activity(db: Session, user: user_db.User, ip_address: str, browser_info: str):
+    is_new_device = False
+    is_new_ip = False
+    
+    if user.last_browser and user.last_browser != browser_info:
+        is_new_device = True
+    if user.last_ip_address and user.last_ip_address != ip_address:
+        is_new_ip = True
+        
+    user.last_login = datetime.utcnow()
+    user.last_ip_address = ip_address
+    user.last_browser = browser_info
+    user.is_new_device_login = is_new_device
+    user.is_new_ip_login = is_new_ip
+    
+    db.commit()
+    
+    create_audit_log(
+        db,
+        "User Login",
+        f"User '{user.email}' logged in",
+        user.id,
+        user.company_id
+    )
+    
+    if is_new_device:
+        create_audit_log(
+            db,
+            "New Device Detected",
+            f"User '{user.email}' logged in from a new device/browser",
+            user.id,
+            user.company_id
+        )
+        
+    if is_new_ip:
+        create_audit_log(
+            db,
+            "New IP Address Detected",
+            f"User '{user.email}' logged in from a new IP address: {ip_address}",
+            user.id,
+            user.company_id
+        )
+    return user
+
+def logout_user(db: Session, user: user_db.User):
+    user.last_logout = datetime.utcnow()
+    db.commit()
+    
+    create_audit_log(
+        db,
+        "User Logout",
+        f"User '{user.email}' logged out",
+        user.id,
+        user.company_id
+    )
+    return {"message": "Logged out successfully"}

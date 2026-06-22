@@ -7,6 +7,7 @@ import api from '../../services/api';
 import './Settings.css';
 
 const Settings = () => {
+  // --- SETTINGS STATE ---
   const { user, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('profile');
@@ -52,6 +53,11 @@ const Settings = () => {
   const [pendingLeaveRequests, setPendingLeaveRequests] = useState([]);
   const [fetchingRequests, setFetchingRequests] = useState(false);
 
+  // --- SETTINGS EFFECTS & FUNCTIONS ---
+  /**
+   * Fetches all pending requests for Admins, including role upgrades,
+   * user reactivations, and leave requests.
+   */
   const fetchRequests = useCallback(async () => {
     if (user?.role !== 'Admin') return;
     setFetchingRequests(true);
@@ -77,6 +83,10 @@ const Settings = () => {
     }
   }, [activeTab, fetchRequests]);
 
+  /**
+   * Handles approval or rejection of role upgrade requests.
+   * Refreshes the request list upon completion.
+   */
   const handleApproval = async (id, status) => {
     try {
       const response = await api.put(`/users/role-requests/${id}`, { status });
@@ -87,6 +97,10 @@ const Settings = () => {
     }
   };
 
+  /**
+   * Handles approval or rejection of user account reactivation requests.
+   * Refreshes the request list upon completion.
+   */
   const handleReactivationApproval = async (id, status) => {
     try {
       const response = await api.put(`/users/reactivation-requests/${id}`, { status });
@@ -97,6 +111,10 @@ const Settings = () => {
     }
   };
 
+  /**
+   * Handles approval or rejection of employee leave requests from the Admin settings panel.
+   * Refreshes the request list upon completion.
+   */
   const handleLeaveApproval = async (id, status) => {
     try {
       await api.put(`/leaves/${id}`, { status });

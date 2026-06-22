@@ -26,6 +26,7 @@ import { useNotification } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 
 const Users = () => {
+  // --- USERS STATE ---
   const { user } = useAuth();
   const [currentCompany, setCurrentCompany] = useState(null);
   const [employees, setEmployees] = useState([]);
@@ -53,8 +54,14 @@ const Users = () => {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [touchedFields, setTouchedFields] = useState({});
 
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferData, setTransferData] = useState({ to_department_id: '', reason: '' });
+  const [transferHistory, setTransferHistory] = useState([]);
+  const [transferHistoryLoading, setTransferHistoryLoading] = useState(false);
+
   const { addNotification } = useNotification();
 
+  // --- USERS EFFECTS & FUNCTIONS ---
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -243,6 +250,48 @@ setCurrentCompany(companyData);
       status: 'Active', phone: '', location: '',
       joinDate: new Date().toISOString().split('T')[0]
     });
+  };
+
+  const fetchTransferHistory = async (empId) => {
+    try {
+      setTransferHistoryLoading(true);
+      const history = await employeeService.getEmployeeTransfers(empId);
+      setTransferHistory(history);
+    } catch (error) {
+      console.error('Failed to fetch transfer history', error);
+      toast.error('Failed to fetch transfer history');
+    } finally {
+      setTransferHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedEmployee && activeTab === 'transfer') {
+      fetchTransferHistory(selectedEmployee.id);
+    }
+  }, [selectedEmployee, activeTab]);
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (!transferData.to_department_id) {
+      toast.error('Please select a destination department');
+      return;
+    }
+    try {
+      const updated = await employeeService.transferEmployee(selectedEmployee.id, transferData);
+      setEmployees(employees.map(emp => emp.id === updated.id ? updated : emp));
+      setSelectedEmployee(updated);
+      setShowTransferModal(false);
+      setTransferData({ to_department_id: '', reason: '' });
+      addNotification(`Employee transferred: ${updated.name}`);
+      toast.success('Employee transferred successfully');
+      if (activeTab === 'transfer') {
+        fetchTransferHistory(updated.id);
+      }
+    } catch (error) {
+      console.error('Error transferring employee:', error);
+      toast.error(error.response?.data?.detail || 'Failed to transfer employee');
+    }
   };
 
   const buildInvitationLink = (token) => `${window.location.origin}/signup?token=${token}`;
@@ -468,8 +517,15 @@ setCurrentCompany(companyData);
                 <h2>{selectedEmployee.name}</h2>
                 <p className="profile-role">{selectedEmployee.role}</p>
                 <div className="profile-actions">
-                  <button className="btn-outline-primary" onClick={() => handleEditClick(selectedEmployee)}>Edit Profile</button>
-                  <button className="btn-primary" style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }} onClick={() => setShowDeleteModal(true)}>Delete</button>
+                  {user?.role === 'Admin' && (
+                    <button className="btn-outline-primary" onClick={() => handleEditClick(selectedEmployee)}>Edit Profile</button>
+                  )}
+                  {user?.role === 'Admin' && (
+                    <button className="btn-outline-primary" onClick={() => setShowTransferModal(true)}>Transfer</button>
+                  )}
+                  {user?.role === 'Admin' && (
+                    <button className="btn-primary" style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }} onClick={() => setShowDeleteModal(true)}>Delete</button>
+                  )}
                 </div>
               </div>
 
@@ -492,6 +548,14 @@ setCurrentCompany(companyData);
                 >
                   Attendance
                 </button>
+                {user?.role === 'Admin' && (
+                  <button 
+                    className={`tab-btn ${activeTab === 'transfer' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('transfer')}
+                  >
+                    Transfer History
+                  </button>
+                )}
               </div>
 
               <div className="tab-content">
@@ -541,6 +605,44 @@ setCurrentCompany(companyData);
                     <div className="placeholder-icon"><Calendar size={32} /></div>
                     <h4>Attendance Records</h4>
                     <p>Recent leaves, attendance score, and history placeholder.</p>
+                  </div>
+                )}
+
+                {activeTab === 'transfer' && user?.role === 'Admin' && (
+                  <div className="transfer-history-section">
+                    <h4>Department Transfer History</h4>
+                    {transferHistoryLoading ? (
+                      <p>Loading history...</p>
+                    ) : transferHistory.length === 0 ? (
+                      <div className="placeholder-section" style={{ padding: '20px' }}>
+                        <p>No transfer history found for this employee.</p>
+                      </div>
+                    ) : (
+                      <div className="table-wrapper" style={{ marginTop: '16px' }}>
+                        <table className="emp-table" style={{ fontSize: '14px' }}>
+                          <thead>
+                            <tr>
+                              <th>Date</th>
+                              <th>From</th>
+                              <th>To</th>
+                              <th>Reason</th>
+                              <th>Authorized By</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {transferHistory.map(th => (
+                              <tr key={th.id}>
+                                <td>{new Date(th.transfer_date).toLocaleDateString()}</td>
+                                <td>{th.from_department_name || 'N/A'}</td>
+                                <td>{th.to_department_name}</td>
+                                <td>{th.reason || '-'}</td>
+                                <td>{th.actor_name}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -682,6 +784,53 @@ setCurrentCompany(companyData);
               <button type="button" className="btn-outline-primary" onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button type="button" className="btn-primary" style={{ backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)' }} onClick={handleDeleteConfirm}>Delete</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showTransferModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2>Transfer Department</h2>
+              <button className="btn-icon" onClick={() => setShowTransferModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleTransferSubmit} className="add-employee-form">
+              <div className="form-group">
+                <label>Current Department</label>
+                <input type="text" value={selectedEmployee?.department || 'None'} disabled />
+              </div>
+              <div className="form-group">
+                <label>New Department</label>
+                <select 
+                  required 
+                  value={transferData.to_department_id} 
+                  onChange={e => setTransferData({...transferData, to_department_id: parseInt(e.target.value)})}
+                >
+                  <option value="">Select Destination Department</option>
+                  {departments
+                    .filter(dept => dept.name !== selectedEmployee?.department)
+                    .map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Reason for Transfer (Optional)</label>
+                <textarea 
+                  value={transferData.reason} 
+                  onChange={e => setTransferData({...transferData, reason: e.target.value})}
+                  rows={3}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-secondary)', color: 'var(--color-text)' }}
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn-outline-primary" onClick={() => setShowTransferModal(false)}>Cancel</button>
+                <button type="submit" className="btn-primary">Execute Transfer</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

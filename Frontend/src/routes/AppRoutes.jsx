@@ -12,6 +12,7 @@ import Settings from '../pages/Settings/Settings';
 import CompanyDetails from '../pages/Company/CompanyDetails';
 import AuditLogs from '../pages/AuditLogs/AuditLogs';
 import Members from '../pages/Members/Members';
+import ActivityTracking from '../pages/ActivityTracking/ActivityTracking';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 const AppRoutes = () => {
@@ -35,6 +36,9 @@ const AppRoutes = () => {
           </Route>
           <Route path="audit-logs" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<AuditLogs />} />
+          </Route>
+          <Route path="activity" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<ActivityTracking />} />
           </Route>
           <Route path="members" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<Members />} />

@@ -4,6 +4,10 @@ from app.models import user_db
 from app.models.company_db import Company
 from app.models.employee_db import Employee
 from app.models.employee import EmployeeCreate, EmployeeUpdate
+from app.models.department_db import Department
+from app.models.department_transfer_db import DepartmentTransfer
+from app.models.department_transfer_schema import DepartmentTransferCreate
+from app.models.notification_db import Notification
 from fastapi import HTTPException
 
 def normalize_company_name(name: str) -> str:
@@ -121,3 +125,85 @@ def delete_employee(db: Session, employee_id: int, company_id: int, actor_id: in
         company_id,
     )
     return {"message": "Employee deleted successfully"}
+
+def transfer_employee(db: Session, employee_id: int, transfer_data: DepartmentTransferCreate, company_id: int, actor_id: int):
+    db_employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
+    if not db_employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    from_dept_id = db_employee.department_id
+    to_dept_id = transfer_data.to_department_id
+
+    if from_dept_id == to_dept_id:
+        raise HTTPException(status_code=400, detail="Employee is already in this department")
+
+    to_dept = db.query(Department).filter(Department.id == to_dept_id).first()
+    if not to_dept:
+        raise HTTPException(status_code=404, detail="Target department not found")
+
+    from_dept = None
+    if from_dept_id:
+        from_dept = db.query(Department).filter(Department.id == from_dept_id).first()
+
+    db_employee.department_id = to_dept_id
+
+    transfer_record = DepartmentTransfer(
+        employee_id=employee_id,
+        from_department_id=from_dept_id,
+        to_department_id=to_dept_id,
+        actor_id=actor_id,
+        reason=transfer_data.reason
+    )
+    db.add(transfer_record)
+    
+    if db_employee.email:
+        notification_msg = f"Your department has been changed to {to_dept.name}."
+        if transfer_data.reason:
+            notification_msg += f" Reason: {transfer_data.reason}"
+        notification = Notification(
+            user_email=db_employee.email,
+            message=notification_msg,
+            type="department_transfer"
+        )
+        db.add(notification)
+
+    from app.controllers.audit_controller import create_audit_log
+    from_dept_name = from_dept.name if from_dept else "None"
+    create_audit_log(
+        db,
+        "Employee Transferred",
+        f"Employee '{db_employee.name}' transferred from '{from_dept_name}' to '{to_dept.name}' by user {actor_id}",
+        actor_id,
+        company_id,
+    )
+
+    db.commit()
+    db.refresh(db_employee)
+    return db_employee
+
+def get_department_transfers_by_employee(db: Session, employee_id: int, company_id: int):
+    db_employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
+    if not db_employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    transfers = db.query(DepartmentTransfer).filter(DepartmentTransfer.employee_id == employee_id).order_by(DepartmentTransfer.transfer_date.desc()).all()
+    
+    result = []
+    for t in transfers:
+        from_dept = db.query(Department).filter(Department.id == t.from_department_id).first()
+        to_dept = db.query(Department).filter(Department.id == t.to_department_id).first()
+        actor = db.query(user_db.User).filter(user_db.User.id == t.actor_id).first()
+        
+        result.append({
+            "id": t.id,
+            "employee_id": t.employee_id,
+            "from_department_id": t.from_department_id,
+            "to_department_id": t.to_department_id,
+            "from_department_name": from_dept.name if from_dept else None,
+            "to_department_name": to_dept.name if to_dept else None,
+            "actor_id": t.actor_id,
+            "actor_name": actor.name if actor else None,
+            "reason": t.reason,
+            "transfer_date": t.transfer_date
+        })
+    return result

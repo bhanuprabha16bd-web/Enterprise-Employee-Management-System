@@ -4,10 +4,12 @@ import { auditService } from '../../services/auditService';
 import './AuditLogs.css';
 
 const AuditLogs = () => {
+  // --- AUDIT LOGS STATE ---
   const [logs, setLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // --- AUDIT LOGS EFFECTS & FUNCTIONS ---
   useEffect(() => {
     const fetchLogs = async () => {
       try {
