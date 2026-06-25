@@ -5,6 +5,14 @@ from app.models import attendance_log_db, user_db, employee_db, department_db
 from app.controllers.audit_controller import create_audit_log
 
 def check_in(db: Session, current_user: user_db.User):
+    """
+    Records a clock-in event for the current user in the attendance log.
+    """
+    """
+    Handle user check-in.
+    Creates a new attendance log for today if one does not already exist.
+    Logs an audit event for the action.
+    """
     today = date.today()
     existing = db.query(attendance_log_db.AttendanceLog).filter(
         attendance_log_db.AttendanceLog.user_id == current_user.id,
@@ -28,6 +36,14 @@ def check_in(db: Session, current_user: user_db.User):
     return log
 
 def check_out(db: Session, current_user: user_db.User):
+    """
+    Records a clock-out event for the current user and updates the total hours worked.
+    """
+    """
+    Handle user check-out.
+    Finds today's check-in record and sets the check-out time.
+    Calculates total hours worked and logs an audit event.
+    """
     today = date.today()
     log = db.query(attendance_log_db.AttendanceLog).filter(
         attendance_log_db.AttendanceLog.user_id == current_user.id,
@@ -55,6 +71,12 @@ def check_out(db: Session, current_user: user_db.User):
     return log
 
 def get_today_status(db: Session, current_user: user_db.User):
+    """
+    Fetches the user's attendance status (e.g. checked-in, checked-out) for the current day.
+    """
+    """
+    Retrieve the attendance status (log) for the current user for today.
+    """
     today = date.today()
     log = db.query(attendance_log_db.AttendanceLog).filter(
         attendance_log_db.AttendanceLog.user_id == current_user.id,
@@ -63,12 +85,25 @@ def get_today_status(db: Session, current_user: user_db.User):
     return log
 
 def get_my_history(db: Session, current_user: user_db.User, limit: int = 30):
+    """
+    Retrieves the attendance history for the logged-in user, limited to a certain number of records.
+    """
+    """
+    Fetch the attendance history for the current user, limited to the specified number of records.
+    """
     logs = db.query(attendance_log_db.AttendanceLog).filter(
         attendance_log_db.AttendanceLog.user_id == current_user.id
     ).order_by(attendance_log_db.AttendanceLog.date.desc()).limit(limit).all()
     return logs
 
 def get_all_attendance(db: Session, company_id: int):
+    """
+    Fetches the attendance records for all employees within the given company.
+    """
+    """
+    Retrieve all attendance logs for a given company.
+    Includes related user, employee, and department information.
+    """
     # Use outerjoin for both employee and department to avoid errors if they are null
     logs = (
         db.query(attendance_log_db.AttendanceLog, user_db.User, employee_db.Employee, department_db.Department)

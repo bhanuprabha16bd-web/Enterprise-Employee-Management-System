@@ -11,10 +11,23 @@ COMPANY_CANONICAL_NAMES = {name.lower(): name for name in ALLOWED_COMPANY_NAMES}
 
 
 def normalize_company_name(name: str) -> str:
+    """
+    Normalizes the company name for consistent database storage and comparison.
+    """
+    """
+    Normalize a company name for case-insensitive and whitespace-trimmed comparison.
+    """
     return name.strip().lower()
 
 
 def cleanup_duplicate_allowed_companies(db: Session):
+    """
+    Removes duplicate company entries from the allowed companies list.
+    """
+    """
+    Clean up duplicate company records ensuring only canonical names are present.
+    Merges duplicate companies by updating associated employees and users to a primary company ID.
+    """
     allowed_lower = [name.lower() for name in ALLOWED_COMPANY_NAMES]
     companies = db.query(Company).filter(func.lower(Company.name).in_(allowed_lower)).all()
     grouped = {}
@@ -46,6 +59,13 @@ def cleanup_duplicate_allowed_companies(db: Session):
 
 
 def get_all_companies(db: Session, current_user_company_id: int):
+    """
+    Fetches a list of all registered companies, optionally filtered by the current user's company.
+    """
+    """
+    Retrieve a list of all allowed companies with their employee and user counts.
+    Creates any missing canonical companies and cleans up duplicates before returning results.
+    """
     missing_companies = [name for name in ALLOWED_COMPANY_NAMES if not db.query(Company).filter(func.lower(Company.name) == name.lower()).first()]
     if missing_companies:
         for name in missing_companies:
@@ -78,6 +98,12 @@ def get_all_companies(db: Session, current_user_company_id: int):
     return result
 
 def get_company_details(db: Session, company_id: int):
+    """
+    Retrieves detailed information for a specific company by its ID.
+    """
+    """
+    Retrieve details for a specific company including the total count of employees and users.
+    """
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
@@ -93,6 +119,13 @@ def get_company_details(db: Session, company_id: int):
     }
 
 def update_company(db: Session, company_id: int, company_data: CompanyBase):
+    """
+    Updates the profile and settings of a given company.
+    """
+    """
+    Update a company's information.
+    Ensures the updated name is in the allowed list and not already taken by another company.
+    """
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")

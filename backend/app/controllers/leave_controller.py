@@ -4,6 +4,13 @@ from app.models import leave_request_db, leave_request_schema, user_db, employee
 from app.controllers.audit_controller import create_audit_log
 
 def create_leave_request(db: Session, current_user: user_db.User, data: leave_request_schema.LeaveRequestCreate):
+    """
+    Submits a new leave/time-off request for the current user.
+    """
+    """
+    Create a new leave request for the current user.
+    Status is initially set to 'Pending'. Also logs the action.
+    """
     req = leave_request_db.LeaveRequest(
         user_id=current_user.id,
         company_id=current_user.company_id,
@@ -20,11 +27,24 @@ def create_leave_request(db: Session, current_user: user_db.User, data: leave_re
     return req
 
 def get_my_leaves(db: Session, current_user: user_db.User):
+    """
+    Fetches all leave requests submitted by the currently logged-in user.
+    """
+    """
+    Retrieve all leave requests submitted by the current user.
+    """
     return db.query(leave_request_db.LeaveRequest).filter(
         leave_request_db.LeaveRequest.user_id == current_user.id
     ).order_by(leave_request_db.LeaveRequest.created_at.desc()).all()
 
 def get_company_leaves(db: Session, company_id: int):
+    """
+    Retrieves all leave requests across the company for administrative review.
+    """
+    """
+    Retrieve all leave requests for the company.
+    Includes details about the associated user, employee, and department.
+    """
     logs = (
         db.query(leave_request_db.LeaveRequest, user_db.User, employee_db.Employee, department_db.Department)
         .join(user_db.User, user_db.User.id == leave_request_db.LeaveRequest.user_id)
@@ -54,6 +74,13 @@ def get_company_leaves(db: Session, company_id: int):
     return result
 
 def update_leave_status(db: Session, leave_id: int, status: str, current_user: user_db.User):
+    """
+    Approves, rejects, or modifies the status of a specific leave request.
+    """
+    """
+    Update the status (e.g., Approved, Rejected) of a leave request.
+    Only accessible by Admin users. Logs the update event.
+    """
     if current_user.role != 'Admin':
         raise HTTPException(status_code=403, detail="Only Admins can update leave status")
         

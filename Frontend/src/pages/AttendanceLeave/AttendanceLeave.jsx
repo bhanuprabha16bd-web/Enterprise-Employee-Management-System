@@ -5,6 +5,11 @@ import api from '../../services/api';
 import toast from 'react-hot-toast';
 import './AttendanceLeave.css';
 
+/**
+ * AttendanceLeave Component.
+ * Provides a unified interface for managing both Attendance and Leave requests.
+ * Admins can view and approve requests for all users. Regular users can manage their own requests.
+ */
 const AttendanceLeave = () => {
   const [activeTab, setActiveTab] = useState('attendance');
   const { user } = useAuth();

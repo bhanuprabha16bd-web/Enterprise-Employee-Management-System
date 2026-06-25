@@ -3,6 +3,11 @@ import { Search, Clock4, ListChecks } from 'lucide-react';
 import { auditService } from '../../services/auditService';
 import './AuditLogs.css';
 
+/**
+ * AuditLogs Component.
+ * Fetches and displays a list of system audit events, allowing admins
+ * to track activities like role changes, logins, and entity updates.
+ */
 const AuditLogs = () => {
   // --- AUDIT LOGS STATE ---
   const [logs, setLogs] = useState([]);
@@ -36,6 +41,12 @@ const AuditLogs = () => {
     );
   });
 
+  /**
+   * Derives a related entity name from the event description.
+   * Helps categorize logs for better readability.
+   * @param {Object} log - Audit log entry
+   * @returns {string} Categorized entity string
+   */
   const getRelatedEntity = (log) => {
     const entityHints = ['employee', 'department', 'company', 'user', 'role request', 'attendance', 'audit log'];
     const text = `${log.event_type} ${log.description}`.toLowerCase();

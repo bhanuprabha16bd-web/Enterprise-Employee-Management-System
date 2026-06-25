@@ -6,6 +6,11 @@ import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
 import './Login.css';
 
+/**
+ * Login Component
+ * Renders the login and sign-up forms for the application.
+ * Handles user authentication, token verification, and account creation.
+ */
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -47,6 +52,10 @@ const Login = () => {
     }
   }, [location.pathname, token, hasCheckedToken]);
 
+  /**
+   * Handles form submission for both login and signup modes.
+   * @param {Event} e - The form submission event.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -76,7 +85,14 @@ const Login = () => {
           company_id: payload.company_id ?? null,
         });
         toast.success('Logged in successfully!');
-        navigate(payload.status === 'Inactive' ? '/deactivated' : '/app');
+        const accountStatus = payload.status ?? 'Active';
+        if (accountStatus === 'Suspended') {
+          navigate('/suspended', { replace: true });
+        } else if (accountStatus === 'Deactivated' || accountStatus === 'Inactive') {
+          navigate('/deactivated', { replace: true });
+        } else {
+          navigate('/app', { replace: true });
+        }
       } else {
         const errorData = await response.json();
         toast.error(errorData.detail || 'Login failed');

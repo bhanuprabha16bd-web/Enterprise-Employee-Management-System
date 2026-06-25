@@ -4,6 +4,11 @@ import toast from 'react-hot-toast';
 import { userService } from '../../services/userService';
 import './ActivityTracking.css';
 
+/**
+ * ActivityTracking Component.
+ * Displays a list of users with their login/logout times, IPs, and device info.
+ * Highlights users with new device or new IP login alerts.
+ */
 const ActivityTracking = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -12,6 +17,9 @@ const ActivityTracking = () => {
     fetchUsers();
   }, []);
 
+  /**
+   * Fetches user activity data from the backend.
+   */
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
@@ -24,6 +32,11 @@ const ActivityTracking = () => {
     }
   };
 
+  /**
+   * Formats a date string for display.
+   * @param {string} dateString - ISO date string
+   * @returns {string} Formatted local date string or 'Never'
+   */
   const formatDate = (dateString) => {
     if (!dateString) return 'Never';
     const date = new Date(dateString);

@@ -30,8 +30,13 @@ ChartJS.register(
 import './Dashboard.css';
 import { employeeService } from '../../services/employeeService';
 
+/**
+ * Dashboard Component.
+ * Main landing page post-login. Displays high-level analytics and charts
+ * regarding employees, departments, roles, and status overviews.
+ */
 const Dashboard = () => {
-  // --- DASHBOARD STATE ---
+  // Dashboard state
   const [analytics, setAnalytics] = useState({
     total_employees: 0,
     active_employees: 0,
@@ -46,7 +51,10 @@ const Dashboard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
 
-  // --- DASHBOARD EFFECTS & FUNCTIONS ---
+  // Fetch dashboard analytics and employee list
+  /**
+   * Fetches dashboard metrics and a list of recent employees.
+   */
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
@@ -68,11 +76,16 @@ const Dashboard = () => {
     fetchAnalytics();
   }, []);
 
+  // Refresh dashboard data manually
+  /**
+   * Manually refreshes dashboard data.
+   */
   const refreshAnalytics = async () => {
     setRefreshing(true);
     await fetchAnalytics();
   };
 
+  // Calculate top-card summary values from employee data
   const stats = useMemo(() => {
     const total = employees.length;
     const active = employees.filter((emp) => emp.status === 'Active').length;
@@ -86,6 +99,7 @@ const Dashboard = () => {
     };
   }, [analytics.pending_role_requests, employees]);
 
+  // Prepare department doughnut chart data
   const departmentChartData = useMemo(() => ({
     labels: analytics.employees_by_department.map((item) => item.label),
     datasets: [
@@ -101,6 +115,7 @@ const Dashboard = () => {
     ]
   }), [analytics.employees_by_department]);
 
+  // Prepare role bar chart data
   const roleChartData = useMemo(() => ({
     labels: analytics.employees_by_role.map((item) => item.label),
     datasets: [
@@ -113,6 +128,7 @@ const Dashboard = () => {
     ]
   }), [analytics.employees_by_role]);
 
+  // Prepare status bar chart data
   const statusChartData = useMemo(() => ({
     labels: analytics.employee_status_overview.map((item) => item.label),
     datasets: [
@@ -125,6 +141,7 @@ const Dashboard = () => {
     ]
   }), [analytics.employee_status_overview]);
 
+  // Build a simple attendance trend from active employee percentage
   const attendanceTrendData = useMemo(() => {
     const total = analytics.total_employees || 1;
     const baseValue = Math.round((analytics.active_employees / total) * 100) || 80;
@@ -148,6 +165,7 @@ const Dashboard = () => {
     };
   }, [analytics.total_employees, analytics.active_employees]);
 
+  // Shared chart configuration
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,

@@ -4,6 +4,13 @@ from app.models import user_db
 
 
 def create_audit_log(db: Session, event_type: str, description: str, actor_id: int, company_id: int):
+    """
+    Creates a new audit log entry to track system events and actions performed by users.
+    """
+    """
+    Create a new audit log entry.
+    Records events like check-ins, data modifications, or administrative actions.
+    """
     audit_log = AuditLog(
         event_type=event_type,
         description=description,
@@ -17,6 +24,13 @@ def create_audit_log(db: Session, event_type: str, description: str, actor_id: i
 
 
 def get_audit_logs(db: Session, company_id: int):
+    """
+    Retrieves a list of audit logs for the specified company.
+    """
+    """
+    Retrieve all audit logs for a specific company, ordered by creation date (descending).
+    Includes the actor's name for easier display.
+    """
     logs = (
         db.query(AuditLog)
         .filter(AuditLog.company_id == company_id)

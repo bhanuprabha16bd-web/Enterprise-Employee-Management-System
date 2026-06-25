@@ -2,6 +2,11 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
+/**
+ * AuthProvider Component.
+ * Provides authentication state (user, token) and methods (login, logout, updateUser)
+ * to the rest of the application via context.
+ */
 export const AuthProvider = ({ children }) => {
   // --- AUTH STATE ---
   const [user, setUser] = useState(null);
@@ -9,6 +14,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // --- AUTH EFFECTS & FUNCTIONS ---
+  /**
+   * Parses token on load and updates user state.
+   */
   useEffect(() => {
     // In a real app, you might validate the token with the backend here.
     // For now, we'll just decode the JWT payload to get user info.
@@ -32,12 +40,18 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [token]);
 
+  /**
+   * Logs in a user by saving the token and user data.
+   */
   const login = (newToken, userData) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
     setUser(userData);
   };
 
+  /**
+   * Logs out the user by destroying token via API and clearing local state.
+   */
   const logout = async () => {
     if (token) {
       try {
@@ -56,6 +70,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  /**
+   * Updates current user object incrementally.
+   */
   const updateUser = (newUserData) => {
     setUser(prev => ({ ...prev, ...newUserData }));
   };

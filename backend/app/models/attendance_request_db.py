@@ -3,6 +3,13 @@ from sqlalchemy.sql import func
 from app.database.config import Base
 
 class AttendanceRequest(Base):
+    """
+    SQLAlchemy model representing a user's request for attendance tracking access.
+    """
+    """
+    Database model for managing attendance-related requests (e.g., regularization).
+    Tracks the status of the request (Pending, Approved, Rejected) for a user.
+    """
     __tablename__ = 'attendance_requests'
 
     id = Column(Integer, primary_key=True, index=True)

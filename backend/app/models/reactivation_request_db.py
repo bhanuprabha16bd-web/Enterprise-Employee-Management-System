@@ -5,6 +5,9 @@ from app.database.config import Base
 
 
 class ReactivationRequest(Base):
+    """
+    SQLAlchemy model representing a user's request to reactivate a deactivated account.
+    """
     __tablename__ = 'reactivation_requests'
 
     id = Column(Integer, primary_key=True, index=True)

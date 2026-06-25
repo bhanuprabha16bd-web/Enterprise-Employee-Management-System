@@ -8,7 +8,31 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
+/**
+ * Unit tests for the ProtectedRoute component.
+ * Mocks the AuthContext to verify correct redirection behaviors based on user status and authentication.
+ */
 describe('ProtectedRoute', () => {
+  it('redirects suspended users to the suspended page', () => {
+    useAuth.mockReturnValue({
+      user: { role: 'User', status: 'Suspended' },
+      token: 'token-value',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/app']}>
+        <Routes>
+          <Route path="/app" element={<ProtectedRoute />}>
+            <Route index element={<div>Dashboard</div>} />
+          </Route>
+          <Route path="/suspended" element={<div>Account Suspended</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Account Suspended')).toBeInTheDocument();
+  });
+
   it('redirects inactive users to the deactivated page', () => {
     useAuth.mockReturnValue({
       user: { role: 'User', status: 'Inactive' },

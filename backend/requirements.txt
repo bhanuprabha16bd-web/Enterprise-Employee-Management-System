@@ -6,3 +6,6 @@ pydantic[email]
 pyjwt
 passlib[bcrypt]
 python-multipart
+pandas
+openpyxl
+fpdf2

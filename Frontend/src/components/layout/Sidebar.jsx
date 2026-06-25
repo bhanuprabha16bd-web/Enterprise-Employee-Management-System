@@ -7,11 +7,19 @@ import {
   Settings,
   CircleUserRound,
   Briefcase,
-  ListChecks
+  ListChecks,
+  DownloadCloud
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
+/**
+ * Sidebar Component.
+ * Renders the navigation links based on user role and displays current user profile info.
+ * 
+ * @param {Object} props - Component props
+ * @param {boolean} props.isOpen - Determines if the sidebar is expanded or collapsed
+ */
 const Sidebar = ({ isOpen }) => {
   // --- SIDEBAR STATE ---
   const { user } = useAuth();
@@ -60,6 +68,10 @@ const Sidebar = ({ isOpen }) => {
             <NavLink to="/app/company" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
               <Briefcase size={20} />
               <span>Company</span>
+            </NavLink>
+            <NavLink to="/app/data-export" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <DownloadCloud size={20} />
+              <span>Data Export Center</span>
             </NavLink>
           </>
         )}

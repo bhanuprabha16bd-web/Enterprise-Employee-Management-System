@@ -21,10 +21,15 @@ import {
 } from 'lucide-react';
 import './Users.css';
 import { employeeService } from '../../services/employeeService';
-import { userService } from '../../services/userService';
 import { useNotification } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 
+/**
+ * Users Component
+ * Comprehensive dashboard for managing employees.
+ * Features include adding, editing, deleting, and transferring employees,
+ * as well as viewing their detailed profiles and histories.
+ */
 const Users = () => {
   // --- USERS STATE ---
   const { user } = useAuth();
@@ -107,6 +112,11 @@ setCurrentCompany(companyData);
   // Mock employees from jsonplaceholder do not have a companyId, so we will display them as is.
   const companyEmployees = sortedEmployees;
 
+  /**
+   * Sorts the employee list based on the selected column key.
+   * Toggles direction if the same key is clicked.
+   * @param {string} key - The column key to sort by.
+   */
   const handleSort = (key) => {
     let direction = 'asc';
     if (sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -124,6 +134,10 @@ setCurrentCompany(companyData);
     }
   };
 
+  /**
+   * Handles submission of the new employee form.
+   * @param {Event} e - The form submission event.
+   */
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -149,6 +163,10 @@ setCurrentCompany(companyData);
     }
   };
 
+  /**
+   * Opens the edit modal for a selected employee.
+   * @param {Object} emp - The employee to edit.
+   */
   const handleEditClick = (emp) => {
     const dept = departments.find(d => d.name === emp.department);
     setEditEmployee({
@@ -158,6 +176,10 @@ setCurrentCompany(companyData);
     setShowEditModal(true);
   };
 
+  /**
+   * Handles submission of the employee edit form.
+   * @param {Event} e - The form submission event.
+   */
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -184,6 +206,9 @@ setCurrentCompany(companyData);
     }
   };
 
+  /**
+   * Confirms and processes the deletion of an employee.
+   */
   const handleDeleteConfirm = async () => {
     try {
       await employeeService.deleteEmployee(selectedEmployee.id);
@@ -198,6 +223,11 @@ setCurrentCompany(companyData);
     }
   };
 
+  /**
+   * Updates an employee's status directly from the table dropdown.
+   * @param {Object} emp - The employee.
+   * @param {string} newStatus - The new status.
+   */
   const handleStatusChange = async (emp, newStatus) => {
     try {
       const updated = await employeeService.updateEmployee(emp.id, { ...emp, status: newStatus });
@@ -252,6 +282,10 @@ setCurrentCompany(companyData);
     });
   };
 
+  /**
+   * Fetches the transfer history for a specific employee.
+   * @param {number} empId - The employee ID.
+   */
   const fetchTransferHistory = async (empId) => {
     try {
       setTransferHistoryLoading(true);
@@ -271,6 +305,10 @@ setCurrentCompany(companyData);
     }
   }, [selectedEmployee, activeTab]);
 
+  /**
+   * Handles submission of an employee transfer request to a new department.
+   * @param {Event} e - The form submission event.
+   */
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
     if (!transferData.to_department_id) {
@@ -296,6 +334,10 @@ setCurrentCompany(companyData);
 
   const buildInvitationLink = (token) => `${window.location.origin}/signup?token=${token}`;
 
+  /**
+   * Handles the submission of a new user invitation.
+   * @param {Event} e - The form submission event.
+   */
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
     if (!inviteData.email.trim()) {
@@ -553,7 +595,7 @@ setCurrentCompany(companyData);
                     className={`tab-btn ${activeTab === 'transfer' ? 'active' : ''}`}
                     onClick={() => setActiveTab('transfer')}
                   >
-                    Transfer History
+                    Transfers
                   </button>
                 )}
               </div>
@@ -618,29 +660,25 @@ setCurrentCompany(companyData);
                         <p>No transfer history found for this employee.</p>
                       </div>
                     ) : (
-                      <div className="table-wrapper" style={{ marginTop: '16px' }}>
-                        <table className="emp-table" style={{ fontSize: '14px' }}>
-                          <thead>
-                            <tr>
-                              <th>Date</th>
-                              <th>From</th>
-                              <th>To</th>
-                              <th>Reason</th>
-                              <th>Authorized By</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {transferHistory.map(th => (
-                              <tr key={th.id}>
-                                <td>{new Date(th.transfer_date).toLocaleDateString()}</td>
-                                <td>{th.from_department_name || 'N/A'}</td>
-                                <td>{th.to_department_name}</td>
-                                <td>{th.reason || '-'}</td>
-                                <td>{th.actor_name}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <div className="transfer-history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+                        {transferHistory.map(th => (
+                          <div key={th.id} className="transfer-history-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{new Date(th.transfer_date).toLocaleDateString()}</span>
+                              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>By {th.actor_name}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                              <span>{th.from_department_name || 'N/A'}</span>
+                              <span style={{ color: 'var(--accent)' }}>→</span>
+                              <span>{th.to_department_name}</span>
+                            </div>
+                            {th.reason && (
+                              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                                Reason: {th.reason}
+                              </p>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

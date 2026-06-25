@@ -1,10 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Copy, Link2, Trash2, UserMinus, UserPlus } from 'lucide-react';
+import { Copy, Link2, ShieldAlert, Trash2, UserMinus, UserPlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { userService } from '../../services/userService';
 import './Members.css';
 
+/**
+ * Members Component
+ * Admin dashboard for managing users and invitations.
+ * Allows viewing active members, sending new invitations, and revoking pending invitations.
+ */
 const Members = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -14,7 +19,13 @@ const Members = () => {
   const [inviteRole, setInviteRole] = useState('User');
   const [createdInviteLink, setCreatedInviteLink] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [memberToSuspend, setMemberToSuspend] = useState(null);
+  const [suspendReason, setSuspendReason] = useState('');
+  const [suspendSubmitting, setSuspendSubmitting] = useState(false);
 
+  /**
+   * Fetches the list of all registered users/members.
+   */
   const fetchMembers = async () => {
     try {
       setLoading(true);
@@ -27,6 +38,9 @@ const Members = () => {
     }
   };
 
+  /**
+   * Fetches the list of all pending invitations.
+   */
   const fetchInvitations = async () => {
     try {
       const data = await userService.getInvitations();
@@ -44,6 +58,11 @@ const Members = () => {
 
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === 'Active'),
+    [members]
+  );
+
+  const suspendedMembers = useMemo(
+    () => members.filter((member) => member.status === 'Suspended'),
     [members]
   );
 
@@ -73,6 +92,10 @@ const Members = () => {
     }
   };
 
+  /**
+   * Handles the submission of a new invitation form.
+   * @param {Event} event - The form submission event.
+   */
   const handleInviteSubmit = async (event) => {
     event.preventDefault();
     if (!inviteEmail.trim()) {
@@ -98,6 +121,10 @@ const Members = () => {
     }
   };
 
+  /**
+   * Revokes a pending invitation.
+   * @param {number} invitationId - The ID of the invitation to revoke.
+   */
   const handleRevoke = async (invitationId) => {
     try {
       await userService.revokeInvitation(invitationId);
@@ -108,6 +135,10 @@ const Members = () => {
     }
   };
 
+  /**
+   * Deactivates a user account.
+   * @param {number} userId - The ID of the user to deactivate.
+   */
   const handleDeactivate = async (userId) => {
     try {
       await userService.deactivateUser(userId);
@@ -115,6 +146,36 @@ const Members = () => {
       fetchMembers();
     } catch (error) {
       console.error('Deactivate failed', error);
+    }
+  };
+
+  const openSuspendModal = (member) => {
+    setMemberToSuspend(member);
+    setSuspendReason('');
+  };
+
+  const closeSuspendModal = () => {
+    setMemberToSuspend(null);
+    setSuspendReason('');
+    setSuspendSubmitting(false);
+  };
+
+  const handleSuspend = async () => {
+    if (!memberToSuspend) return;
+    if (!suspendReason.trim()) {
+      toast.error('Enter a suspension reason');
+      return;
+    }
+
+    setSuspendSubmitting(true);
+    try {
+      await userService.suspendUser(memberToSuspend.email, suspendReason.trim());
+      toast.success(`${memberToSuspend.role === 'Admin' ? 'Admin' : 'User'} suspended`);
+      closeSuspendModal();
+      fetchMembers();
+    } catch (error) {
+      console.error('Suspend failed', error);
+      setSuspendSubmitting(false);
     }
   };
 
@@ -187,6 +248,10 @@ const Members = () => {
               <strong>{loading ? '...' : activeMembers.length}</strong>
             </div>
             <div>
+              <span className="stat-label">Suspended members</span>
+              <strong>{loading ? '...' : suspendedMembers.length}</strong>
+            </div>
+            <div>
               <span className="stat-label">Pending invitations</span>
               <strong>{pendingInvitations.length}</strong>
             </div>
@@ -194,8 +259,8 @@ const Members = () => {
         </section>
 
         <section className="panel members-panel">
-          <h2>Active Members</h2>
-          <p className="panel-subtitle">Review all active members in the company.</p>
+          <h2>Company Members</h2>
+          <p className="panel-subtitle">Review account status and restrict access for users or admins.</p>
 
           <div className="table-wrapper">
             <table className="members-table">
@@ -213,26 +278,36 @@ const Members = () => {
                   <tr>
                     <td colSpan="5" className="empty-state">Loading members…</td>
                   </tr>
-                ) : activeMembers.length ? (
-                  activeMembers.map((member) => (
+                ) : members.length ? (
+                  members.map((member) => (
                     <tr key={member.id}>
                       <td>{member.name}</td>
                       <td>{member.email}</td>
                       <td>{member.role}</td>
                       <td>{member.status}</td>
-                      <td>
+                      <td className="member-actions">
+                        {member.status !== 'Suspended' && member.email !== user?.email && (
+                          <button
+                            className="btn-outline btn-warning"
+                            onClick={() => openSuspendModal(member)}
+                          >
+                            <ShieldAlert size={16} /> Suspend
+                          </button>
+                        )}
+                        {member.status !== 'Deactivated' && member.status !== 'Inactive' && member.email !== user?.email && (
                         <button
                           className="btn-outline"
                           onClick={() => handleDeactivate(member.id)}
                         >
                           <UserMinus size={16} /> Deactivate
                         </button>
+                        )}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="empty-state">No active members found.</td>
+                    <td colSpan="5" className="empty-state">No members found.</td>
                   </tr>
                 )}
               </tbody>
@@ -288,6 +363,38 @@ const Members = () => {
           </table>
         </div>
       </section>
+
+      {memberToSuspend && (
+        <div className="modal-overlay">
+          <div className="modal-content suspend-modal">
+            <div className="modal-header">
+              <h2>Suspend {memberToSuspend.role === 'Admin' ? 'Admin' : 'User'}</h2>
+              <button type="button" className="icon-button" onClick={closeSuspendModal}>
+                <X size={16} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                Suspend <strong>{memberToSuspend.name}</strong> ({memberToSuspend.email}) and block access to all application modules.
+              </p>
+              <label htmlFor="member-suspend-reason">Suspension reason</label>
+              <textarea
+                id="member-suspend-reason"
+                rows="4"
+                value={suspendReason}
+                onChange={(event) => setSuspendReason(event.target.value)}
+                placeholder="Explain why this account is being suspended"
+              />
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn-outline" onClick={closeSuspendModal}>Cancel</button>
+              <button type="button" className="btn-danger" onClick={handleSuspend} disabled={suspendSubmitting}>
+                <ShieldAlert size={16} /> {suspendSubmitting ? 'Suspending...' : 'Suspend account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

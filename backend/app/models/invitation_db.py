@@ -5,10 +5,20 @@ from app.database.config import Base
 
 
 def default_expires_at():
+    """
+    Returns a default expiration date (7 days from the current UTC time).
+    """
     return datetime.utcnow() + timedelta(days=7)
 
 
 class Invitation(Base):
+    """
+    SQLAlchemy model representing an invitation sent to a prospective user.
+    """
+    """
+    Database model for managing user invitations to join a company.
+    Includes the invitation token, target email, role, and expiration details.
+    """
     __tablename__ = "invitations"
 
     id = Column(Integer, primary_key=True, index=True)

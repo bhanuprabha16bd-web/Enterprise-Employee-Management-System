@@ -3,6 +3,13 @@ from sqlalchemy.orm import relationship
 from app.database.config import Base
 
 class Employee(Base):
+    """
+    SQLAlchemy model representing an employee record.
+    """
+    """
+    Database model representing an employee.
+    Holds personal information, status, and relationships to their department and company.
+    """
     __tablename__ = "employees"
 
     id = Column(Integer, primary_key=True, index=True)

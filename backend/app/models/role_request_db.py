@@ -2,6 +2,9 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 from app.database.config import Base
 
 class RoleRequest(Base):
+    """
+    SQLAlchemy model representing a user's request for an administrative role.
+    """
     __tablename__ = "role_requests"
     
     id = Column(Integer, primary_key=True, index=True)

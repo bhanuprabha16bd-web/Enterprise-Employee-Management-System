@@ -11,10 +11,23 @@ from app.models.notification_db import Notification
 from fastapi import HTTPException
 
 def normalize_company_name(name: str) -> str:
+    """
+    Normalizes the company name string for consistent queries.
+    """
+    """
+    Normalize a company name for consistent string comparison.
+    """
     return name.strip().lower()
 
 
 def clone_source_employees_to_global_tech(db: Session, target_company_id: int):
+    """
+    Utility function to clone employees from a source company to 'Global Tech'.
+    """
+    """
+    Ensure the 'Global Tech' company contains cloned employees from a source company ('Corp' or 'Company Inc').
+    Syncs the employee list so that the demo environment for Global Tech has consistent data.
+    """
     target_company = db.query(Company).filter(Company.id == target_company_id).first()
     if not target_company or normalize_company_name(target_company.name) != "global tech":
         return
@@ -62,16 +75,36 @@ def clone_source_employees_to_global_tech(db: Session, target_company_id: int):
 
 
 def get_all_employees(db: Session, company_id: int):
+    """
+    Fetches a list of all employees belonging to the specified company.
+    """
+    """
+    Retrieve all employees for a given company.
+    Calls a synchronization function for the 'Global Tech' company beforehand.
+    """
     clone_source_employees_to_global_tech(db, company_id)
     return db.query(Employee).filter(Employee.company_id == company_id).all()
 
 def get_employee_by_id(db: Session, employee_id: int, company_id: int):
+    """
+    Retrieves the details of a specific employee by their ID.
+    """
+    """
+    Fetch a specific employee by ID, ensuring they belong to the provided company.
+    """
     employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     return employee
 
 def create_employee(db: Session, employee: EmployeeCreate, company_id: int, actor_id: int):
+    """
+    Creates a new employee record and associates it with a company.
+    """
+    """
+    Create a new employee record.
+    Logs an audit event after successful creation.
+    """
     db_employee = Employee(**employee.model_dump(), company_id=company_id)
     db.add(db_employee)
     db.commit()
@@ -87,6 +120,13 @@ def create_employee(db: Session, employee: EmployeeCreate, company_id: int, acto
     return db_employee
 
 def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate, company_id: int, actor_id: int):
+    """
+    Updates an existing employee's information.
+    """
+    """
+    Update an existing employee's details.
+    Only provided fields are updated, and an audit log records the modified fields.
+    """
     db_employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -110,6 +150,13 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
     return db_employee
 
 def delete_employee(db: Session, employee_id: int, company_id: int, actor_id: int):
+    """
+    Removes an employee record from the database.
+    """
+    """
+    Delete an employee record by their ID.
+    Logs an audit event for the deletion action.
+    """
     db_employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -127,6 +174,13 @@ def delete_employee(db: Session, employee_id: int, company_id: int, actor_id: in
     return {"message": "Employee deleted successfully"}
 
 def transfer_employee(db: Session, employee_id: int, transfer_data: DepartmentTransferCreate, company_id: int, actor_id: int):
+    """
+    Initiates a department transfer for a specific employee.
+    """
+    """
+    Transfer an employee from their current department to a new one.
+    Records the transfer history, creates an audit log, and notifies the employee.
+    """
     db_employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
@@ -182,6 +236,13 @@ def transfer_employee(db: Session, employee_id: int, transfer_data: DepartmentTr
     return db_employee
 
 def get_department_transfers_by_employee(db: Session, employee_id: int, company_id: int):
+    """
+    Retrieves the department transfer history for a given employee.
+    """
+    """
+    Retrieve the department transfer history for a specific employee.
+    Joins with department and user details to provide meaningful names.
+    """
     db_employee = db.query(Employee).filter(Employee.id == employee_id, Employee.company_id == company_id).first()
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")

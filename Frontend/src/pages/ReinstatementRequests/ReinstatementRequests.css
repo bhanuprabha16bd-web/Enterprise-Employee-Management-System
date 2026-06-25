@@ -1,0 +1,120 @@
+.reinstatement-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.requests-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.requests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.request-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.user-info h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.user-email {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.status-badge.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.request-body {
+  background: rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.reason-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.reason-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.request-date {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.request-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.request-actions button {
+  flex: 1;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.reject-btn {
+  border-color: var(--color-danger) !important;
+  color: var(--color-danger) !important;
+}
+
+.reject-btn:hover {
+  background: var(--color-danger) !important;
+  color: white !important;
+}
+
+.approve-btn {
+  background: var(--color-success) !important;
+  border-color: var(--color-success) !important;
+}
+
+.approve-btn:hover {
+  filter: brightness(1.1);
+}

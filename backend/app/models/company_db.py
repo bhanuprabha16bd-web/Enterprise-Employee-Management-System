@@ -3,6 +3,13 @@ from sqlalchemy.orm import relationship
 from app.database.config import Base
 
 class Company(Base):
+    """
+    SQLAlchemy model representing a company entity in the system.
+    """
+    """
+    Database model for storing company information.
+    A company groups together users and employees.
+    """
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)

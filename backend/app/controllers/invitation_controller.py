@@ -6,6 +6,14 @@ from app.controllers.audit_controller import create_audit_log
 
 
 def create_invitation(db, email: str, role: str, admin_user: user_db.User):
+    """
+    Generates a new invitation token and sends it to the specified email.
+    """
+    """
+    Create a new user invitation.
+    Verifies that the inviter is an Admin, checks if the email is already registered or invited,
+    generates a unique token, and creates the invitation record.
+    """
     if admin_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -48,11 +56,24 @@ def create_invitation(db, email: str, role: str, admin_user: user_db.User):
 
 
 def get_invitations(db, company_id: int):
+    """
+    Retrieves a list of active and pending invitations for the company.
+    """
+    """
+    Retrieve a list of all invitations for a specific company.
+    """
     invites = db.query(invitation_db.Invitation).filter(invitation_db.Invitation.company_id == company_id).all()
     return invites
 
 
 def revoke_invitation(db, invitation_id: int, company_id: int, admin_user: user_db.User):
+    """
+    Revokes an existing invitation, preventing it from being used.
+    """
+    """
+    Revoke a pending invitation.
+    Changes the status to 'Revoked' and logs the admin action.
+    """
     invitation = db.query(invitation_db.Invitation).filter(
         invitation_db.Invitation.id == invitation_id,
         invitation_db.Invitation.company_id == company_id,
@@ -75,6 +96,14 @@ def revoke_invitation(db, invitation_id: int, company_id: int, admin_user: user_
 
 
 def verify_invitation(db, token: str):
+    """
+    Validates an invitation token and returns the associated role/company.
+    """
+    """
+    Verify the validity of an invitation token.
+    Checks if the token exists, is pending, and has not expired.
+    Raises HTTPException for invalid or expired tokens.
+    """
     invitation = db.query(invitation_db.Invitation).filter(
         invitation_db.Invitation.token == token,
         invitation_db.Invitation.status == "Pending",

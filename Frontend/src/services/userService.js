@@ -1,6 +1,14 @@
 import api from './api';
 
+/**
+ * User Service
+ * Handles API calls related to user management, invitations, and status changes.
+ */
 export const userService = {
+  /**
+   * Fetches all users.
+   * @returns {Promise<Array>} List of users.
+   */
   getUsers: async () => {
     const response = await api.get('/users/');
     return response.data || [];
@@ -23,6 +31,11 @@ export const userService = {
 
   deactivateUser: async (userId) => {
     const response = await api.put(`/users/${userId}/deactivate`);
+    return response.data;
+  },
+
+  suspendUser: async (email, reason) => {
+    const response = await api.put(`/users/${email}/suspend`, { reason });
     return response.data;
   },
 

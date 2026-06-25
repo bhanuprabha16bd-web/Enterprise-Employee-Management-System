@@ -3,6 +3,7 @@ import Welcome from '../pages/Welcome/Welcome';
 import Login from '../pages/Login/Login';
 import ForgotPassword from '../pages/Login/ForgotPassword';
 import AccountDeactivated from '../pages/Login/AccountDeactivated';
+import AccountSuspended from '../pages/Login/AccountSuspended';
 import MainLayout from '../components/layout/MainLayout';
 import Dashboard from '../pages/Dashboard/Dashboard';
 import Users from '../pages/Users/Users';
@@ -13,8 +14,15 @@ import CompanyDetails from '../pages/Company/CompanyDetails';
 import AuditLogs from '../pages/AuditLogs/AuditLogs';
 import Members from '../pages/Members/Members';
 import ActivityTracking from '../pages/ActivityTracking/ActivityTracking';
+import DataExport from '../pages/DataExport/DataExport';
+import ReinstatementRequests from '../pages/ReinstatementRequests/ReinstatementRequests';
 import ProtectedRoute from '../components/ProtectedRoute';
 
+/**
+ * AppRoutes Component
+ * Defines the main routing structure of the React application.
+ * Manages public, protected, and role-restricted routes.
+ */
 const AppRoutes = () => {
   return (
     <Routes>
@@ -23,6 +31,7 @@ const AppRoutes = () => {
       <Route path="/signup" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/deactivated" element={<AccountDeactivated />} />
+      <Route path="/suspended" element={<AccountSuspended />} />
       <Route path="/app" element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route index element={<Dashboard />} />
@@ -45,6 +54,12 @@ const AppRoutes = () => {
           </Route>
           <Route path="company" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<CompanyDetails />} />
+          </Route>
+          <Route path="data-export" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<DataExport />} />
+          </Route>
+          <Route path="reinstatement-requests" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<ReinstatementRequests />} />
           </Route>
           <Route path="settings" element={<ProtectedRoute />}>
             <Route index element={<Settings />} />

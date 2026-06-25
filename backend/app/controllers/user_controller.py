@@ -3,6 +3,14 @@ from sqlalchemy import func
 from fastapi import HTTPException
 from app.controllers.audit_controller import create_audit_log
 from app.models import user_db, user_schema, role_request_db, reactivation_request_db, attendance_request_db, attendance_request_schema
+from app.models.notification_db import Notification
+
+ACTIVE_STATUS = "Active"
+SUSPENDED_STATUS = "Suspended"
+DEACTIVATED_STATUS = "Deactivated"
+LEGACY_DEACTIVATED_STATUS = "Inactive"
+VALID_USER_STATUSES = {ACTIVE_STATUS, SUSPENDED_STATUS, DEACTIVATED_STATUS, LEGACY_DEACTIVATED_STATUS}
+TERMINAL_ACCOUNT_STATUSES = {SUSPENDED_STATUS, DEACTIVATED_STATUS, LEGACY_DEACTIVATED_STATUS}
 
 COMPANY_NAME_MAP = {
     "company inc": "Company Inc",
@@ -12,27 +20,111 @@ COMPANY_NAME_MAP = {
 ALLOWED_COMPANY_NAMES_DISPLAY = list(COMPANY_NAME_MAP.values())
 
 
+def normalize_user_status(status: str | None) -> str:
+    """
+    Normalizes user account state names while preserving legacy Inactive records.
+    """
+    if status == LEGACY_DEACTIVATED_STATUS:
+        return DEACTIVATED_STATUS
+    return status or ACTIVE_STATUS
+
+
+def validate_user_status(status: str | None) -> str:
+    normalized = normalize_user_status(status)
+    if normalized not in {ACTIVE_STATUS, SUSPENDED_STATUS, DEACTIVATED_STATUS}:
+        raise HTTPException(status_code=400, detail="Status must be Active, Suspended, or Deactivated")
+    return normalized
+
+
+def add_notification(db: Session, user_email: str | None, message: str, notification_type: str = "info"):
+    if not user_email:
+        return None
+    notification = Notification(
+        user_email=user_email,
+        message=message,
+        type=notification_type,
+    )
+    db.add(notification)
+    return notification
+
+
+def notify_company_admins(
+    db: Session,
+    company_id: int,
+    message: str,
+    notification_type: str = "reinstatement",
+    preferred_admin_id: int | None = None,
+):
+    admins_by_email = {
+        admin.email: admin
+        for admin in (
+        db.query(user_db.User)
+        .filter(
+            user_db.User.company_id == company_id,
+            user_db.User.role == "Admin",
+            user_db.User.status == ACTIVE_STATUS,
+        )
+        .all()
+        )
+    }
+    if preferred_admin_id:
+        preferred_admin = (
+            db.query(user_db.User)
+            .filter(
+                user_db.User.id == preferred_admin_id,
+                user_db.User.company_id == company_id,
+                user_db.User.role == "Admin",
+                user_db.User.status != DEACTIVATED_STATUS,
+            )
+            .first()
+        )
+        if preferred_admin:
+            admins_by_email[preferred_admin.email] = preferred_admin
+
+    ordered_admins = sorted(admins_by_email.values(), key=lambda admin: 0 if admin.id == preferred_admin_id else 1)
+    for admin in ordered_admins:
+        add_notification(db, admin.email, message, notification_type)
+
+
 def normalize_company_name(name: str) -> str:
+    """
+    Normalizes the company name for consistency.
+    """
     return name.strip()
 
 
 def canonical_company_name(name: str) -> str | None:
+    """
+    Maps a company name to its canonical representation if it exists.
+    """
     return COMPANY_NAME_MAP.get(normalize_company_name(name).lower())
 
 
 def is_allowed_company_name(name: str) -> bool:
+    """
+    Checks if the provided company name is in the allowed whitelist.
+    """
     return canonical_company_name(name) is not None
 
 def get_users(db: Session, company_id: int):
+    """
+    Retrieves a list of users belonging to a specific company.
+    """
     return db.query(user_db.User).filter(user_db.User.company_id == company_id).all()
 
 def get_user(db: Session, user_id: int, company_id: int):
+    """
+    Fetches a specific user's details by their user ID.
+    """
     user = db.query(user_db.User).filter(user_db.User.id == user_id, user_db.User.company_id == company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
 def create_user(db: Session, user: user_schema.UserCreate):
+    """
+    Registers a new user in the system.
+    """
     from app.auth import get_password_hash
     from app.models.company_db import Company
     
@@ -58,6 +150,7 @@ def create_user(db: Session, user: user_schema.UserCreate):
     user_data = user.dict()
     password = user_data.pop("password")
     user_data.pop("company_name", None)
+    user_data["status"] = validate_user_status(user_data.get("status"))
     
     user_data["password_hash"] = get_password_hash(password)
     user_data["company_id"] = company.id
@@ -69,6 +162,9 @@ def create_user(db: Session, user: user_schema.UserCreate):
     return new_user
 
 def authenticate_user(db: Session, email: str, password: str):
+    """
+    Validates the user's email and password during the login process.
+    """
     from app.auth import verify_password
     user = db.query(user_db.User).filter(user_db.User.email == email).first()
     if not user:
@@ -78,13 +174,21 @@ def authenticate_user(db: Session, email: str, password: str):
     return user
 
 def update_user(db: Session, user_id: int, updated_user: user_schema.UserUpdate, company_id: int):
+    """
+    Updates a user's profile information.
+    """
     user = db.query(user_db.User).filter(user_db.User.id == user_id, user_db.User.company_id == company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    requested_status = validate_user_status(updated_user.status)
+    if requested_status in TERMINAL_ACCOUNT_STATUSES:
+        raise HTTPException(status_code=400, detail="Use the suspend or deactivate workflow to restrict account access")
+
     user.name = updated_user.name
     user.email = updated_user.email
     user.role = updated_user.role
+    user.status = requested_status
     user.bio = updated_user.bio
     user.website = updated_user.website
     db.commit()
@@ -92,6 +196,9 @@ def update_user(db: Session, user_id: int, updated_user: user_schema.UserUpdate,
     return user
 
 def delete_user(db: Session, user_id: int, company_id: int):
+    """
+    Hard deletes a user record from the database.
+    """
     user = db.query(user_db.User).filter(user_db.User.id == user_id, user_db.User.company_id == company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -100,12 +207,17 @@ def delete_user(db: Session, user_id: int, company_id: int):
     return {"message": "User deleted successfully"}
 
 def deactivate_user(db: Session, user_id: int, company_id: int, admin_user: user_db.User):
+    """
+    Soft deletes or deactivates a user account.
+    """
     user = db.query(user_db.User).filter(user_db.User.id == user_id, user_db.User.company_id == company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    if user.status == "Inactive":
-        raise HTTPException(status_code=400, detail="User is already inactive")
-    user.status = "Inactive"
+    if normalize_user_status(user.status) == DEACTIVATED_STATUS:
+        raise HTTPException(status_code=400, detail="User is already deactivated")
+    if user.status == SUSPENDED_STATUS:
+        raise HTTPException(status_code=400, detail="Suspended users must be reinstated before deactivation")
+    user.status = DEACTIVATED_STATUS
     user.deactivated_by = admin_user.id
     db.commit()
     db.refresh(user)
@@ -119,7 +231,10 @@ def deactivate_user(db: Session, user_id: int, company_id: int, admin_user: user
     return user
 
 def create_reactivation_request(db: Session, request_data: user_schema.ReactivationRequestCreate, current_user: user_db.User):
-    if current_user.status != "Inactive":
+    """
+    Submits a request to reactivate a deactivated user account.
+    """
+    if normalize_user_status(current_user.status) != DEACTIVATED_STATUS:
         raise HTTPException(status_code=400, detail="Account is already active")
 
     existing_request = (
@@ -155,6 +270,9 @@ def create_reactivation_request(db: Session, request_data: user_schema.Reactivat
 
 
 def get_reactivation_requests(db: Session, current_user: user_db.User):
+    """
+    Retrieves reactivation requests submitted by the current user.
+    """
     requests = (
         db.query(reactivation_request_db.ReactivationRequest)
         .filter(
@@ -180,6 +298,9 @@ def get_reactivation_requests(db: Session, current_user: user_db.User):
 
 
 def get_reactivation_requests_for_admin(db: Session, admin_user: user_db.User):
+    """
+    Retrieves all pending reactivation requests for admin review.
+    """
     requests = (
         db.query(reactivation_request_db.ReactivationRequest, user_db.User)
         .join(user_db.User, user_db.User.id == reactivation_request_db.ReactivationRequest.user_id)
@@ -209,6 +330,9 @@ def get_reactivation_requests_for_admin(db: Session, admin_user: user_db.User):
 
 
 def update_reactivation_request(db: Session, request_id: int, status_update: user_schema.ReactivationRequestUpdate, admin_user: user_db.User):
+    """
+    Approves or rejects a reactivation request.
+    """
     request = (
         db.query(reactivation_request_db.ReactivationRequest)
         .filter(
@@ -230,7 +354,7 @@ def update_reactivation_request(db: Session, request_id: int, status_update: use
     status = status_update.status
     if status == 'Approved':
         request.status = 'Approved'
-        user.status = 'Active'
+        user.status = ACTIVE_STATUS
         user.deactivated_by = None
         event_type = 'Reactivation Approved'
         description = f"Admin '{admin_user.email}' approved reactivation for '{user.email}'"
@@ -251,6 +375,9 @@ def update_reactivation_request(db: Session, request_id: int, status_update: use
 
 
 def reset_password(db: Session, reset_data: user_schema.PasswordReset):
+    """
+    Resets the user's password using the provided reset token or current password.
+    """
     from app.auth import get_password_hash
     user = db.query(user_db.User).filter(user_db.User.email == reset_data.email).first()
     if not user:
@@ -260,6 +387,9 @@ def reset_password(db: Session, reset_data: user_schema.PasswordReset):
     return {"message": "Password updated successfully"}
 
 def request_admin_role(db: Session, request_data: user_schema.RoleRequestCreate, current_user: user_db.User):
+    """
+    Submits a request for administrative privileges.
+    """
     from app.auth import verify_password
     # Verify the current user
     user = db.query(user_db.User).filter(user_db.User.email == current_user.email).first()
@@ -299,6 +429,9 @@ def request_admin_role(db: Session, request_data: user_schema.RoleRequestCreate,
     return {"message": "Role change request submitted successfully"}
 
 def get_role_requests(db: Session, admin_user: user_db.User):
+    """
+    Retrieves pending role change requests for administrative review.
+    """
     requests = (
         db.query(role_request_db.RoleRequest, user_db.User)
         .join(user_db.User, user_db.User.id == role_request_db.RoleRequest.user_id)
@@ -322,6 +455,9 @@ def get_role_requests(db: Session, admin_user: user_db.User):
     return result
 
 def update_role_request(db: Session, request_id: int, status_update: user_schema.RoleRequestUpdate, admin_user: user_db.User):
+    """
+    Approves or rejects a role change request.
+    """
     req = db.query(role_request_db.RoleRequest).filter(
         role_request_db.RoleRequest.id == request_id,
         role_request_db.RoleRequest.admin_email == admin_user.email,
@@ -358,6 +494,9 @@ def update_role_request(db: Session, request_id: int, status_update: user_schema
     return {"message": f"Role request {status.lower()} successfully"}
 
 def create_attendance_request(db: Session, current_user: user_db.User):
+    """
+    Submits a request for attendance module access.
+    """
     existing = db.query(attendance_request_db.AttendanceRequest).filter(
         attendance_request_db.AttendanceRequest.user_id == current_user.id,
         attendance_request_db.AttendanceRequest.company_id == current_user.company_id
@@ -384,6 +523,9 @@ def create_attendance_request(db: Session, current_user: user_db.User):
     return request
 
 def get_attendance_request(db: Session, current_user: user_db.User):
+    """
+    Fetches the current user's attendance access request.
+    """
     request = db.query(attendance_request_db.AttendanceRequest).filter(
         attendance_request_db.AttendanceRequest.user_id == current_user.id,
         attendance_request_db.AttendanceRequest.company_id == current_user.company_id
@@ -393,6 +535,9 @@ def get_attendance_request(db: Session, current_user: user_db.User):
     return request
 
 def get_attendance_requests_for_admin(db: Session, admin_user: user_db.User):
+    """
+    Retrieves all attendance access requests for admins.
+    """
     requests = (
         db.query(attendance_request_db.AttendanceRequest, user_db.User)
         .join(user_db.User, user_db.User.id == attendance_request_db.AttendanceRequest.user_id)
@@ -418,6 +563,9 @@ def get_attendance_requests_for_admin(db: Session, admin_user: user_db.User):
     ]
 
 def update_attendance_request(db: Session, request_id: int, status_update: attendance_request_schema.AttendanceRequestUpdate, admin_user: user_db.User):
+    """
+    Approves or rejects an attendance access request.
+    """
     req = db.query(attendance_request_db.AttendanceRequest).filter(
         attendance_request_db.AttendanceRequest.id == request_id,
         attendance_request_db.AttendanceRequest.company_id == admin_user.company_id
@@ -455,6 +603,9 @@ def update_attendance_request(db: Session, request_id: int, status_update: atten
 from datetime import datetime
 
 def update_login_activity(db: Session, user: user_db.User, ip_address: str, browser_info: str):
+    """
+    Updates the user's last login timestamp, IP, and browser info.
+    """
     is_new_device = False
     is_new_ip = False
     
@@ -499,6 +650,9 @@ def update_login_activity(db: Session, user: user_db.User, ip_address: str, brow
     return user
 
 def logout_user(db: Session, user: user_db.User):
+    """
+    Logs the user out by clearing session/token data.
+    """
     user.last_logout = datetime.utcnow()
     db.commit()
     
@@ -510,3 +664,225 @@ def logout_user(db: Session, user: user_db.User):
         user.company_id
     )
     return {"message": "Logged out successfully"}
+
+from app.models.employee_db import Employee
+
+def suspend_user(db: Session, email: str, company_id: int, admin_user: user_db.User, reason: str):
+    """
+    Suspends a user account with a specified reason.
+    """
+    user = db.query(user_db.User).filter(user_db.User.email == email, user_db.User.company_id == company_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.id == admin_user.id:
+        raise HTTPException(status_code=400, detail="Cannot suspend yourself")
+    if normalize_user_status(user.status) == DEACTIVATED_STATUS:
+        raise HTTPException(status_code=400, detail="Deactivated users cannot be suspended")
+    if user.status == SUSPENDED_STATUS:
+        raise HTTPException(status_code=400, detail="User is already suspended")
+        
+    user.status = SUSPENDED_STATUS
+    user.suspended_by = admin_user.id
+    user.suspended_at = datetime.utcnow()
+    user.suspension_reason = reason
+
+    employee = db.query(Employee).filter(Employee.email == email, Employee.company_id == company_id).first()
+    if employee:
+        employee.status = "Suspended"
+
+    db.commit()
+    db.refresh(user)
+    if employee:
+        db.refresh(employee)
+    
+    event_type = "Admin Suspended" if user.role == "Admin" else "User Suspended"
+    create_audit_log(
+        db,
+        event_type,
+        f"Admin '{admin_user.email}' suspended user '{user.email}' for reason: {reason}",
+        admin_user.id,
+        admin_user.company_id,
+    )
+    add_notification(
+        db,
+        user.email,
+        f"Your account was suspended by {admin_user.email}. Reason: {reason}",
+        "account_suspended",
+    )
+    db.commit()
+    return user
+
+def get_suspension_details(db: Session, current_user: user_db.User):
+    """
+    Retrieves details about a user's suspension.
+    """
+    if current_user.status != SUSPENDED_STATUS:
+        raise HTTPException(status_code=400, detail="User is not suspended")
+    
+    admin = db.query(user_db.User).filter(user_db.User.id == current_user.suspended_by).first()
+    
+    return {
+        "status": current_user.status,
+        "suspended_at": current_user.suspended_at,
+        "suspension_reason": current_user.suspension_reason,
+        "suspended_by_name": admin.name if admin else "System",
+        "suspended_by_email": admin.email if admin else "",
+    }
+
+from app.models import reinstatement_request_db
+
+def create_reinstatement_request(db: Session, request_data: user_schema.ReinstatementRequestCreate, current_user: user_db.User):
+    """
+    Submits a request to reinstate a suspended account.
+    """
+    if current_user.status != SUSPENDED_STATUS:
+        raise HTTPException(status_code=400, detail="Account is not suspended")
+
+    existing_request = (
+        db.query(reinstatement_request_db.ReinstatementRequest)
+        .filter(
+            reinstatement_request_db.ReinstatementRequest.user_id == current_user.id,
+            reinstatement_request_db.ReinstatementRequest.company_id == current_user.company_id,
+            reinstatement_request_db.ReinstatementRequest.status.in_(["Pending", "Approved"]),
+        )
+        .first()
+    )
+    if existing_request:
+        return existing_request
+
+    request = reinstatement_request_db.ReinstatementRequest(
+        user_id=current_user.id,
+        company_id=current_user.company_id,
+        reason=request_data.reason or "",
+        status="Pending",
+    )
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+
+    create_audit_log(
+        db,
+        "Reinstatement Request Submitted",
+        f"User '{current_user.email}' requested reinstatement",
+        current_user.id,
+        current_user.company_id,
+    )
+    notify_company_admins(
+        db,
+        current_user.company_id,
+        f"Suspended user '{current_user.email}' submitted a reinstatement request.",
+        "reinstatement_request",
+        preferred_admin_id=current_user.suspended_by,
+    )
+    db.commit()
+    return request
+
+def get_reinstatement_requests(db: Session, current_user: user_db.User):
+    """
+    Fetches the current user's reinstatement requests.
+    """
+    requests = (
+        db.query(reinstatement_request_db.ReinstatementRequest)
+        .filter(
+            reinstatement_request_db.ReinstatementRequest.user_id == current_user.id,
+            reinstatement_request_db.ReinstatementRequest.company_id == current_user.company_id,
+        )
+        .order_by(reinstatement_request_db.ReinstatementRequest.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": request.id,
+            "user_id": request.user_id,
+            "company_id": request.company_id,
+            "status": request.status,
+            "reason": request.reason,
+            "created_at": request.created_at,
+            "updated_at": request.updated_at,
+        }
+        for request in requests
+    ]
+
+def get_reinstatement_requests_for_admin(db: Session, admin_user: user_db.User):
+    """
+    Retrieves all reinstatement requests for admin review.
+    """
+    requests = (
+        db.query(reinstatement_request_db.ReinstatementRequest, user_db.User)
+        .join(user_db.User, user_db.User.id == reinstatement_request_db.ReinstatementRequest.user_id)
+        .filter(
+            reinstatement_request_db.ReinstatementRequest.company_id == admin_user.company_id,
+            reinstatement_request_db.ReinstatementRequest.status == 'Pending',
+        )
+        .order_by(reinstatement_request_db.ReinstatementRequest.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            'id': request.id,
+            'user_id': request.user_id,
+            'user_name': user.name,
+            'user_email': user.email,
+            'company_id': request.company_id,
+            'status': request.status,
+            'reason': request.reason,
+            'created_at': request.created_at,
+            'updated_at': request.updated_at,
+        }
+        for request, user in requests
+    ]
+
+def update_reinstatement_request(db: Session, request_id: int, status_update: user_schema.ReinstatementRequestUpdate, admin_user: user_db.User):
+    """
+    Approves or rejects a reinstatement request.
+    """
+    request = (
+        db.query(reinstatement_request_db.ReinstatementRequest)
+        .filter(
+            reinstatement_request_db.ReinstatementRequest.id == request_id,
+            reinstatement_request_db.ReinstatementRequest.company_id == admin_user.company_id,
+        )
+        .first()
+    )
+    if not request:
+        raise HTTPException(status_code=404, detail='Reinstatement request not found')
+
+    if request.status != 'Pending':
+        raise HTTPException(status_code=400, detail='Request already processed')
+
+    user = db.query(user_db.User).filter(user_db.User.id == request.user_id, user_db.User.company_id == admin_user.company_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail='Requested user not found')
+
+    status = status_update.status
+    if status == 'Approved':
+        request.status = 'Approved'
+        user.status = ACTIVE_STATUS
+        user.suspended_by = None
+        user.suspended_at = None
+        user.suspension_reason = None
+        employee = db.query(Employee).filter(Employee.email == user.email, Employee.company_id == user.company_id).first()
+        if employee and employee.status == SUSPENDED_STATUS:
+            employee.status = ACTIVE_STATUS
+        event_type = 'Reinstatement Approved'
+        description = f"Admin '{admin_user.email}' approved reinstatement for '{user.email}'"
+        message = 'Reinstatement request approved successfully'
+    elif status == 'Rejected':
+        request.status = 'Rejected'
+        event_type = 'Reinstatement Rejected'
+        description = f"Admin '{admin_user.email}' rejected reinstatement for '{user.email}'"
+        message = 'Reinstatement request rejected successfully'
+    else:
+        raise HTTPException(status_code=400, detail='Invalid status')
+
+    db.commit()
+    create_audit_log(db, event_type, description, admin_user.id, admin_user.company_id)
+    if status == 'Approved':
+        create_audit_log(db, 'User Reinstated', f"User '{user.email}' account was reinstated upon approval", admin_user.id, admin_user.company_id)
+        add_notification(db, user.email, "Your reinstatement request was approved. Your account is active again.", "reinstatement_approved")
+    elif status == 'Rejected':
+        add_notification(db, user.email, "Your reinstatement request was rejected.", "reinstatement_rejected")
+    db.commit()
+    return {'message': message}

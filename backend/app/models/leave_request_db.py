@@ -3,6 +3,13 @@ from sqlalchemy.sql import func
 from app.database.config import Base
 
 class LeaveRequest(Base):
+    """
+    SQLAlchemy model representing an employee's leave or time-off request.
+    """
+    """
+    Database model handling employee leave requests.
+    Tracks the type of leave, start and end dates, reason, and approval status.
+    """
     __tablename__ = 'leave_requests'
 
     id = Column(Integer, primary_key=True, index=True)

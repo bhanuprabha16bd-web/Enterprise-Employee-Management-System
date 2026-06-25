@@ -6,6 +6,11 @@ import { useTheme } from '../../context/ThemeContext';
 import api from '../../services/api';
 import './Settings.css';
 
+/**
+ * Settings Component
+ * Renders the settings dashboard where users can manage their profile,
+ * security, appearance, notifications, and (for admins) approvals.
+ */
 const Settings = () => {
   // --- SETTINGS STATE ---
   const { user, updateUser } = useAuth();
@@ -50,25 +55,28 @@ const Settings = () => {
 
   const [pendingRequests, setPendingRequests] = useState([]);
   const [pendingReactivationRequests, setPendingReactivationRequests] = useState([]);
+  const [pendingReinstatementRequests, setPendingReinstatementRequests] = useState([]);
   const [pendingLeaveRequests, setPendingLeaveRequests] = useState([]);
   const [fetchingRequests, setFetchingRequests] = useState(false);
 
   // --- SETTINGS EFFECTS & FUNCTIONS ---
   /**
    * Fetches all pending requests for Admins, including role upgrades,
-   * user reactivations, and leave requests.
+   * user reactivations, reinstatements, and leave requests.
    */
   const fetchRequests = useCallback(async () => {
     if (user?.role !== 'Admin') return;
     setFetchingRequests(true);
     try {
-      const [roleResponse, reactivationResponse, leaveResponse] = await Promise.all([
+      const [roleResponse, reactivationResponse, reinstatementResponse, leaveResponse] = await Promise.all([
         api.get('/users/role-requests'),
         api.get('/users/reactivation-requests/admin'),
+        api.get('/users/admin/reinstatement-requests'),
         api.get('/leaves/admin')
       ]);
       setPendingRequests(roleResponse.data || []);
       setPendingReactivationRequests(reactivationResponse.data || []);
+      setPendingReinstatementRequests(reinstatementResponse.data || []);
       setPendingLeaveRequests((leaveResponse.data || []).filter((leave) => leave.status === 'Pending'));
     } catch {
       // Handled by api interceptor
@@ -112,6 +120,20 @@ const Settings = () => {
   };
 
   /**
+   * Handles approval or rejection of suspended account reinstatement requests.
+   * Refreshes the request list upon completion.
+   */
+  const handleReinstatementApproval = async (id, status) => {
+    try {
+      const response = await api.put(`/users/admin/reinstatement-requests/${id}`, { status });
+      toast.success(response.data.message || `Reinstatement request ${status.toLowerCase()} successfully`);
+      fetchRequests();
+    } catch {
+      // Handled by api interceptor
+    }
+  };
+
+  /**
    * Handles approval or rejection of employee leave requests from the Admin settings panel.
    * Refreshes the request list upon completion.
    */
@@ -130,6 +152,10 @@ const Settings = () => {
     return new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
+  /**
+   * Handles the submission of the profile update form.
+   * @param {Event} e - The form submission event.
+   */
   const handleProfileSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
@@ -142,6 +168,10 @@ const Settings = () => {
     }, 800);
   };
 
+  /**
+   * Handles the submission of the security/password update form.
+   * @param {Event} e - The form submission event.
+   */
   const handleSecuritySubmit = (e) => {
     e.preventDefault();
     if (securityData.newPassword !== securityData.confirmPassword) {
@@ -156,6 +186,10 @@ const Settings = () => {
     }, 800);
   };
 
+  /**
+   * Handles the submission of a request to upgrade the user's role to Admin.
+   * @param {Event} e - The form submission event.
+   */
   const handleRoleRequestSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -173,6 +207,10 @@ const Settings = () => {
     }
   };
 
+  /**
+   * Renders the content of the currently active tab in the settings layout.
+   * @returns {JSX.Element|null} The tab content component.
+   */
   const renderTabContent = () => {
     switch (activeTab) {
       case 'profile':
@@ -388,7 +426,7 @@ const Settings = () => {
         return (
           <div className="settings-pane slide-in">
             <h2>Approvals</h2>
-            <p className="pane-subtitle">Manage pending leave, role, and reactivation requests.</p>
+            <p className="pane-subtitle">Manage pending leave, role, reactivation, and reinstatement requests.</p>
             
             <div className="requests-container" style={{ marginTop: '24px', display: 'grid', gap: '18px' }}>
               {fetchingRequests ? (
@@ -477,6 +515,36 @@ const Settings = () => {
                                 <CheckCircle size={16} /> Approve
                               </button>
                               <button className="btn-outline-primary btn-sm" onClick={() => handleReactivationApproval(req.id, 'Rejected')} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
+                                <XCircle size={16} /> Reject
+                              </button>
+                            </div>
+                          </div>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Submitted: {new Date(req.created_at).toLocaleString()}</div>
+                        </div>
+                      ))
+                    )}
+                  </section>
+
+                  <section style={{ display: 'grid', gap: '12px' }}>
+                    <h3 style={{ margin: 0 }}>Reinstatement Requests</h3>
+                    {pendingReinstatementRequests.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', background: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                        No pending reinstatement requests found.
+                      </div>
+                    ) : (
+                      pendingReinstatementRequests.map((req) => (
+                        <div key={req.id} style={{ display: 'grid', gap: '6px', background: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <div>
+                              <h4 style={{ margin: '0 0 4px 0' }}>{req.user_name || req.user_email || 'Suspended user'}</h4>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{req.user_email}</div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '4px' }}>{req.reason || 'No reason provided.'}</div>
+                            </div>
+                            <div className="req-actions" style={{ display: 'flex', gap: '8px' }}>
+                              <button className="btn-primary btn-sm" onClick={() => handleReinstatementApproval(req.id, 'Approved')} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <CheckCircle size={16} /> Approve
+                              </button>
+                              <button className="btn-outline-primary btn-sm" onClick={() => handleReinstatementApproval(req.id, 'Rejected')} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}>
                                 <XCircle size={16} /> Reject
                               </button>
                             </div>

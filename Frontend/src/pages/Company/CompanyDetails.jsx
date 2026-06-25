@@ -4,6 +4,11 @@ import './companyDetails.css';
 import { FaPlus, FaEllipsisV } from 'react-icons/fa';
 import { Users, ShieldAlert } from 'lucide-react';
 
+/**
+ * Companies Component.
+ * Manages the list of companies registered in the system.
+ * Displays current company context and isolated tenants.
+ */
 const Companies = () => {
   const [companies, setCompanies] = useState([]);
   const [currentCompany, setCurrentCompany] = useState(null);
@@ -16,6 +21,9 @@ const Companies = () => {
     fetchCurrentCompany();
   }, []);
 
+  /**
+   * Fetches all companies from the backend.
+   */
   const fetchCompanies = async () => {
     try {
       const res = await axios.get(
@@ -35,6 +43,9 @@ const Companies = () => {
     }
   };
 
+  /**
+   * Fetches details of the currently active company for the user.
+   */
   const fetchCurrentCompany = async () => {
     try {
       const res = await axios.get('http://localhost:8000/company/', {
@@ -48,6 +59,11 @@ const Companies = () => {
     }
   };
 
+  /**
+   * Generates initials from a given company name for the avatar placeholder.
+   * @param {string} name - The company name
+   * @returns {string} Initials
+   */
   const getInitials = (name) => {
     return name
       .split(' ')

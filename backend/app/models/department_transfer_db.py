@@ -4,6 +4,13 @@ from sqlalchemy.orm import relationship
 from app.database.config import Base
 
 class DepartmentTransfer(Base):
+    """
+    SQLAlchemy model representing the history of an employee's department transfers.
+    """
+    """
+    Database model representing the transfer of an employee between departments.
+    Tracks the source and destination departments, the actor responsible, and the transfer date.
+    """
     __tablename__ = "department_transfers"
 
     id = Column(Integer, primary_key=True, index=True)

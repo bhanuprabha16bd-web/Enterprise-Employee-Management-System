@@ -4,6 +4,11 @@ import { Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import './Login.css';
 
+/**
+ * ForgotPassword Component
+ * Provides a form for users to reset their password by providing their email
+ * and a new password.
+ */
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -11,6 +16,10 @@ const ForgotPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  /**
+   * Handles the submission of the password reset form.
+   * @param {Event} e - The form submission event.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);

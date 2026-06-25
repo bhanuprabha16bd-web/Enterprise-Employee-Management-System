@@ -5,6 +5,11 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
+/**
+ * AccountDeactivated Component
+ * Renders a page for users whose accounts have been deactivated.
+ * Allows them to view their status and submit reactivation requests.
+ */
 const AccountDeactivated = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -13,6 +18,9 @@ const AccountDeactivated = () => {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * Fetches the user's past reactivation requests from the server.
+   */
   const fetchRequests = async () => {
     try {
       const response = await api.get('/users/reactivation-requests');
@@ -28,11 +36,18 @@ const AccountDeactivated = () => {
     fetchRequests();
   }, []);
 
+  /**
+   * Handles the logout process and redirects to the login page.
+   */
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
 
+  /**
+   * Submits a new reactivation request to the server.
+   * @param {Event} event - The form submission event.
+   */
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSubmitting(true);

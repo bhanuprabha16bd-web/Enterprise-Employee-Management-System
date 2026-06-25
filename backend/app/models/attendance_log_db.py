@@ -3,6 +3,13 @@ from sqlalchemy.sql import func
 from app.database.config import Base
 
 class AttendanceLog(Base):
+    """
+    SQLAlchemy model representing an employee's attendance record (clock-in/out log).
+    """
+    """
+    Database model for storing daily attendance logs of employees.
+    Records check-in and check-out times, total hours worked, and attendance status.
+    """
     __tablename__ = 'attendance_logs'
 
     id = Column(Integer, primary_key=True, index=True)

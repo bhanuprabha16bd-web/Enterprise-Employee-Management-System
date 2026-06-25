@@ -1,6 +1,11 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+/**
+ * Pre-configured Axios instance for making API requests.
+ * Includes interceptors for attaching the authorization token
+ * and handling generic errors globally.
+ */
 const api = axios.create({
   baseURL: 'http://localhost:8000',
   headers: {

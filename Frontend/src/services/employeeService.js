@@ -12,6 +12,10 @@ const removeDuplicateNames = (employees) => {
   });
 };
 
+/**
+ * Employee Service
+ * Handles API calls related to employees, departments, and company analytics.
+ */
 export const employeeService = {
   /**
    * Fetch all employees

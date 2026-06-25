@@ -8,6 +8,14 @@ import { useNotification } from '../../context/NotificationContext';
 import api from '../../services/api';
 import './Header.css';
 
+/**
+ * Header Component.
+ * Displays top navigation, user notifications, theme toggle, and logout functionality.
+ * Also fetches admin and user notifications periodically.
+ * 
+ * @param {Object} props - Component props
+ * @param {Function} props.toggleSidebar - Function to toggle the sidebar visibility
+ */
 const Header = ({ toggleSidebar }) => {
   const navigate = useNavigate();
   // --- HEADER STATE ---
@@ -22,6 +30,9 @@ const Header = ({ toggleSidebar }) => {
   
   // --- HEADER EFFECTS & FUNCTIONS ---
   
+  /**
+   * Logs out the current user and navigates to the login page.
+   */
   const handleLogout = () => {
     logout();
     toast.success('Logged out successfully');
@@ -38,6 +49,10 @@ const Header = ({ toggleSidebar }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  /**
+   * Fetches requests and approvals for notifications if the user is an Admin.
+   * Runs periodically to update admin on user actions like roles, leave, attendance, and reactivation.
+   */
   useEffect(() => {
     if (user?.role !== 'Admin') return;
 
@@ -131,6 +146,10 @@ const Header = ({ toggleSidebar }) => {
     return () => clearInterval(intervalId);
   }, [user?.role, addNotification, notifications, removeNotification]);
 
+  /**
+   * Fetches personal notifications for the current user.
+   * Runs periodically to keep the user informed.
+   */
   useEffect(() => {
     if (!user) return;
 
@@ -198,6 +217,10 @@ const Header = ({ toggleSidebar }) => {
 
 
 
+  /**
+   * Marks a specific notification as read in both context and database.
+   * @param {Object} notif - The notification object to mark as read
+   */
   const handleMarkAsRead = async (notif) => {
     markAsRead(notif.id);
     if (notif.metaData?.db_id) {
@@ -209,6 +232,9 @@ const Header = ({ toggleSidebar }) => {
     }
   };
 
+  /**
+   * Clears all notifications in both context and database.
+   */
   const handleClearNotifications = async () => {
     clearNotifications();
     try {

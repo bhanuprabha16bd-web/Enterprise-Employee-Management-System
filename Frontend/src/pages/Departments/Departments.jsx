@@ -4,6 +4,11 @@ import toast from 'react-hot-toast';
 import { employeeService } from '../../services/employeeService';
 import './Departments.css';
 
+/**
+ * Departments Component
+ * Renders the departments page, allowing users to view a list of departments,
+ * search through them, and add new departments. It also displays the number of employees in each department.
+ */
 const Departments = () => {
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -17,6 +22,9 @@ const Departments = () => {
     fetchEmployees();
   }, []);
 
+  /**
+   * Fetches the list of all employees to calculate department member counts.
+   */
   const fetchEmployees = async () => {
     try {
       const data = await employeeService.getEmployees();
@@ -26,10 +34,18 @@ const Departments = () => {
     }
   };
 
+  /**
+   * Calculates the number of employees belonging to a specific department.
+   * @param {string} deptName - The name of the department.
+   * @returns {number} The count of employees in the department.
+   */
   const getMemberCount = (deptName) => {
     return employees.filter(emp => emp.department === deptName).length;
   };
 
+  /**
+   * Fetches the list of all departments from the server.
+   */
   const fetchDepartments = async () => {
     try {
       setLoading(true);
@@ -43,6 +59,10 @@ const Departments = () => {
     }
   };
 
+  /**
+   * Handles the submission of the form to add a new department.
+   * @param {Event} e - The form submission event.
+   */
   const handleAddSubmit = async (e) => {
     e.preventDefault();
     if (!newDeptName.trim()) return;

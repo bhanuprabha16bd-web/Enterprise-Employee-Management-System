@@ -4,6 +4,9 @@ from sqlalchemy.orm import relationship
 from app.database.config import Base
 
 class User(Base):
+    """
+    SQLAlchemy model representing a user account in the system.
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -23,6 +26,10 @@ class User(Base):
     company_id = Column(Integer, ForeignKey("companies.id"))
 
     deactivated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    suspended_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    suspended_at = Column(DateTime(timezone=True), nullable=True)
+    suspension_reason = Column(String, nullable=True)
 
     website = Column(String)
 
@@ -41,4 +48,7 @@ class User(Base):
 
     @property
     def company_name(self):
+        """
+        Function to handle company name.
+        """
         return self.company.name if self.company else ""

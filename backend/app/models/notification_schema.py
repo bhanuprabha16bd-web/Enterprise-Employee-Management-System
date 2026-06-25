@@ -2,6 +2,9 @@ from pydantic import BaseModel
 from datetime import datetime
 
 class NotificationResponse(BaseModel):
+    """
+    Pydantic schema for returning notification data to the client.
+    """
     id: int
     user_email: str
     message: str

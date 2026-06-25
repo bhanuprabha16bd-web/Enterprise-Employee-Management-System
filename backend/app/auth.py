@@ -15,14 +15,26 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="users/login")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a plain text password against a hashed password.
+    Returns True if they match, False otherwise.
+    """
     # bcrypt requires bytes
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_password_hash(password: str) -> str:
+    """
+    Generate a bcrypt hash for a given password.
+    Returns the hashed password as a string.
+    """
     # bcrypt returns bytes, so decode to store as string
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    """
+    Create a new JWT access token with an optional expiration time.
+    If expires_delta is not provided, defaults to 15 minutes.
+    """
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -33,6 +45,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 def get_db():
+    """
+    Dependency generator that yields a database session and ensures
+    it is closed after the request is completed.
+    """
     db = SessionLocal()
     try:
         yield db
@@ -40,6 +56,11 @@ def get_db():
         db.close()
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    Retrieve the current user based on the provided JWT token.
+    Validates the token, extracts the user's email, and fetches the user from the database.
+    Raises HTTPException if validation fails or user is not found.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -57,3 +78,20 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
     return user
+
+def get_active_user(current_user: user_db.User = Depends(get_current_user)):
+    """
+    Dependency to ensure the current authenticated user has an active status.
+    Raises HTTPException if the account is suspended or deactivated.
+    """
+    if current_user.status == "Suspended":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is suspended",
+        )
+    if current_user.status == "Inactive" or current_user.status == "Deactivated":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated",
+        )
+    return current_user

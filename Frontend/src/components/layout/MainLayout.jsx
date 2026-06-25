@@ -4,9 +4,16 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import './MainLayout.css';
 
+/**
+ * MainLayout Component.
+ * Provides the overarching layout structure including Sidebar, Header, and the main content area (Outlet).
+ */
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  /**
+   * Toggles the visibility of the sidebar.
+   */
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };

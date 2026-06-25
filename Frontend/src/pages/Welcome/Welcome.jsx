@@ -2,6 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Lock, Users, ArrowRight, UserPlus } from 'lucide-react';
 import './Welcome.css';
 
+/**
+ * Welcome Component
+ * Landing page displaying a welcome message and generic features.
+ * Provides links to sign in or sign up.
+ */
 const Welcome = () => {
   const navigate = useNavigate();
 
