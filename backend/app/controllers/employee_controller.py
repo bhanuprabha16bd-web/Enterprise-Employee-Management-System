@@ -20,6 +20,15 @@ def normalize_company_name(name: str) -> str:
     return name.strip().lower()
 
 
+def calculate_completion_score(employee: Employee) -> int:
+    """
+    Calculates the profile completion score as a percentage.
+    """
+    total_fields = 10
+    missing_count = len(employee.missing_fields)
+    return int(((total_fields - missing_count) / total_fields) * 100)
+
+
 def clone_source_employees_to_global_tech(db: Session, target_company_id: int):
     """
     Utility function to clone employees from a source company to 'Global Tech'.
@@ -42,24 +51,36 @@ def clone_source_employees_to_global_tech(db: Session, target_company_id: int):
     if not source_employees:
         return
 
-    target_employee_names = {
-        normalize_company_name(emp.name) for emp in db.query(Employee).filter(Employee.company_id == target_company_id).all()
+    existing_target_keys = {
+        normalize_company_name(emp.email)
+        for emp in db.query(Employee).filter(Employee.company_id == target_company_id).all()
+        if emp.email
+    }
+    existing_employee_ids = {
+        emp.employee_id
+        for emp in db.query(Employee.employee_id).all()
+        if emp.employee_id
     }
 
-    if target_employee_names == {normalize_company_name(emp.name) for emp in source_employees}:
-        return
-
-    # Remove any existing Global Tech employees that do not match source employee names
-    db.query(Employee).filter(Employee.company_id == target_company_id).delete(synchronize_session=False)
-    db.commit()
-
     company_key = normalize_company_name(target_company.name).replace(" ", "_")
+    employees_added = False
     for source_employee in source_employees:
         email_username = source_employee.email.split("@", 1)[0] if source_employee.email else "employee"
         email_domain = source_employee.email.split("@", 1)[1] if source_employee.email and "@" in source_employee.email else "example.com"
         cloned_email = f"{company_key}_{email_username}@{email_domain}"
+        if normalize_company_name(cloned_email) in existing_target_keys:
+            continue
+
+        base_employee_id = f"{company_key.upper()}-{source_employee.employee_id}"
+        employee_id = base_employee_id
+        suffix = 2
+        while employee_id in existing_employee_ids:
+            employee_id = f"{base_employee_id}-{suffix}"
+            suffix += 1
         db_employee = Employee(
-            name=source_employee.name,
+            employee_id=employee_id,
+            first_name=source_employee.first_name,
+            last_name=source_employee.last_name,
             email=cloned_email,
             role=source_employee.role,
             department_id=source_employee.department_id,
@@ -71,7 +92,12 @@ def clone_source_employees_to_global_tech(db: Session, target_company_id: int):
             company_id=target_company_id
         )
         db.add(db_employee)
-    db.commit()
+        existing_target_keys.add(normalize_company_name(cloned_email))
+        existing_employee_ids.add(employee_id)
+        employees_added = True
+
+    if employees_added:
+        db.commit()
 
 
 def get_all_employees(db: Session, company_id: int):
@@ -109,6 +135,12 @@ def create_employee(db: Session, employee: EmployeeCreate, company_id: int, acto
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
+
+    # Calculate and update completion score
+    db_employee.completion_score = calculate_completion_score(db_employee)
+    db.commit()
+    db.refresh(db_employee)
+
     from app.controllers.audit_controller import create_audit_log
     create_audit_log(
         db,
@@ -117,6 +149,24 @@ def create_employee(db: Session, employee: EmployeeCreate, company_id: int, acto
         actor_id,
         company_id,
     )
+    
+    if db_employee.completion_score == 100:
+        create_audit_log(
+            db,
+            "Profile Reached 100% Completion",
+            f"Employee '{db_employee.name}' reached 100% profile completion.",
+            actor_id,
+            company_id,
+        )
+        if db_employee.email:
+            notification = Notification(
+                user_email=db_employee.email,
+                message="Congratulations! Your profile is now 100% complete.",
+                type="profile_completion"
+            )
+            db.add(notification)
+            db.commit()
+
     return db_employee
 
 def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate, company_id: int, actor_id: int):
@@ -131,6 +181,7 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
     if not db_employee:
         raise HTTPException(status_code=404, detail="Employee not found")
     
+    old_score = db_employee.completion_score or 0
     update_data = employee_data.model_dump(exclude_unset=True)
     changed_fields = []
     for key, value in update_data.items():
@@ -139,6 +190,14 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
         
     db.commit()
     db.refresh(db_employee)
+    
+    new_score = calculate_completion_score(db_employee)
+    if new_score != old_score:
+        db_employee.completion_score = new_score
+        db.commit()
+        db.refresh(db_employee)
+        changed_fields.append(f"completion_score={new_score}")
+
     from app.controllers.audit_controller import create_audit_log
     create_audit_log(
         db,
@@ -147,6 +206,43 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
         actor_id,
         company_id,
     )
+    
+    if new_score != old_score:
+        create_audit_log(
+            db,
+            "Profile Completion Score Changed",
+            f"Employee '{db_employee.name}' profile completion score changed from {old_score}% to {new_score}%.",
+            actor_id,
+            company_id,
+        )
+        
+        THRESHOLD = 80
+        if new_score == 100 and old_score < 100:
+            create_audit_log(
+                db,
+                "Profile Reached 100% Completion",
+                f"Employee '{db_employee.name}' reached 100% profile completion.",
+                actor_id,
+                company_id,
+            )
+            if db_employee.email:
+                notification = Notification(
+                    user_email=db_employee.email,
+                    message="Congratulations! Your profile is now 100% complete.",
+                    type="profile_completion"
+                )
+                db.add(notification)
+                db.commit()
+        elif new_score < THRESHOLD and old_score >= THRESHOLD:
+            if db_employee.email:
+                notification = Notification(
+                    user_email=db_employee.email,
+                    message=f"Your profile completion has fallen below {THRESHOLD}%. Please update your missing information.",
+                    type="profile_completion_alert"
+                )
+                db.add(notification)
+                db.commit()
+
     return db_employee
 
 def delete_employee(db: Session, employee_id: int, company_id: int, actor_id: int):

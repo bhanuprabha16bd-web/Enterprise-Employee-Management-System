@@ -1,0 +1,118 @@
+.profile-progress-container {
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+}
+
+.progress-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.progress-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.progress-chart {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.circular-chart {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  max-height: 250px;
+}
+
+.circle-bg {
+  fill: none;
+  stroke: var(--color-background);
+  stroke-width: 8;
+}
+
+.circle {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+.circle.success { stroke: var(--color-success); }
+.circle.warning { stroke: var(--color-warning); }
+.circle.danger { stroke: var(--color-error); }
+
+.percentage-text {
+  fill: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: bold;
+  font-family: inherit;
+}
+
+.progress-details {
+  flex-grow: 1;
+}
+
+.status-complete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-success);
+  font-weight: 500;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 16px;
+  border-radius: 8px;
+}
+
+.status-incomplete .recommendation {
+  color: var(--color-text-secondary);
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+.missing-fields {
+  background: var(--color-background);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px dashed var(--color-border);
+}
+
+.missing-fields h4 {
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.missing-fields ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.missing-fields li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-error);
+  font-size: 0.85rem;
+  background: rgba(239, 68, 68, 0.05);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+}

@@ -38,7 +38,9 @@ class EmployeeBase(BaseModel):
     """
     Base schema containing core employee attributes.
     """
-    name: str
+    first_name: str
+    last_name: str
+    employee_id: str
     email: EmailStr
     role: str
     status: str = "Active"
@@ -63,7 +65,9 @@ class EmployeeUpdate(BaseModel):
     """
     Schema for updating an employee's details. All fields are optional.
     """
-    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    employee_id: Optional[str] = None
     email: Optional[EmailStr] = None
     role: Optional[str] = None
     status: Optional[str] = None
@@ -82,7 +86,10 @@ class EmployeeResponse(EmployeeBase):
     with the employee's ID and resolved department name.
     """
     id: int
+    name: str
     department: Optional[str] = None
+    completion_score: Optional[int] = 0
+    missing_fields: List[str] = []
 
     @field_validator('department', mode='before')
     @classmethod

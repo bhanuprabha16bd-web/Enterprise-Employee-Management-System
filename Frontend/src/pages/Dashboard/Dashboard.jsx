@@ -29,6 +29,8 @@ ChartJS.register(
 );
 import './Dashboard.css';
 import { employeeService } from '../../services/employeeService';
+import { useAuth } from '../../context/AuthContext';
+import ProfileProgress from '../../components/ProfileProgress/ProfileProgress';
 
 /**
  * Dashboard Component.
@@ -50,6 +52,12 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  const { user } = useAuth();
+  const currentUserEmployee = useMemo(() => {
+    if (!user || !employees.length) return null;
+    return employees.find(emp => emp.email === user.email);
+  }, [user, employees]);
 
   // Fetch dashboard analytics and employee list
   /**
@@ -221,6 +229,15 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {!loading && currentUserEmployee && (
+        <div style={{ marginBottom: '24px' }}>
+          <ProfileProgress 
+            score={currentUserEmployee.completion_score || 0} 
+            missingFields={currentUserEmployee.missing_fields || []} 
+          />
+        </div>
+      )}
 
       <div className="stats-grid">
         <div className="stat-card">

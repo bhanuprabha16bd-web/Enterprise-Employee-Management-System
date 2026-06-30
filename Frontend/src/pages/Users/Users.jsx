@@ -39,6 +39,7 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
+  const [selectedCompletion, setSelectedCompletion] = useState('All');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
@@ -47,8 +48,8 @@ const Users = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editEmployee, setEditEmployee] = useState(null);
   const [newEmployee, setNewEmployee] = useState({
-    name: '', email: '', role: '', department_id: '',
-    status: 'Active', phone: '', location: '',
+    first_name: '', last_name: '', employee_id: '', email: '', role: '', department_id: '',
+    status: 'Active', phone: '', location: '', avatar: '',
     joinDate: new Date().toISOString().split('T')[0]
   });
   const [inviteData, setInviteData] = useState({
@@ -95,7 +96,17 @@ setCurrentCompany(companyData);
     const matchesSearch = emp.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           emp.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = selectedDept === 'All' || emp.department === selectedDept;
-    return matchesSearch && matchesDept;
+
+    let matchesCompletion = true;
+    if (selectedCompletion === 'Complete') {
+      matchesCompletion = emp.completion_score === 100;
+    } else if (selectedCompletion === 'Incomplete') {
+      matchesCompletion = (emp.completion_score || 0) < 100;
+    } else if (selectedCompletion === 'Needs Attention') {
+      matchesCompletion = (emp.completion_score || 0) < 80;
+    }
+
+    return matchesSearch && matchesDept && matchesCompletion;
   });
 
   
@@ -151,11 +162,11 @@ setCurrentCompany(companyData);
       setShowAddModal(false);
       setTouchedFields({});
       setNewEmployee({
-        name: '', email: '', role: '', department_id: '',
-        status: 'Active', phone: '', location: '',
+        first_name: '', last_name: '', employee_id: '', email: '', role: '', department_id: '',
+        status: 'Active', phone: '', location: '', avatar: '',
         joinDate: new Date().toISOString().split('T')[0]
       });
-      addNotification(`New employee added: ${empData.name}`);
+      addNotification(`New employee added: ${empData.first_name} ${empData.last_name}`);
       toast.success('Employee added successfully');
     } catch (error) {
       console.error('Error adding employee:', error);
@@ -184,13 +195,16 @@ setCurrentCompany(companyData);
     e.preventDefault();
     try {
       const empData = {
-  name: editEmployee.name,
+  first_name: editEmployee.first_name,
+  last_name: editEmployee.last_name,
+  employee_id: editEmployee.employee_id,
   email: editEmployee.email,
   role: editEmployee.role,
   department_id: parseInt(editEmployee.department_id),
   status: editEmployee.status,
   phone: editEmployee.phone,
   location: editEmployee.location,
+  avatar: editEmployee.avatar,
   joinDate: editEmployee.joinDate,
   companyId: currentCompany?.id
 };
@@ -243,24 +257,30 @@ setCurrentCompany(companyData);
     }
   };
 
-  const isDuplicateEmployeeName = (name) => {
-    const normalizedName = name.trim().toLowerCase();
-    return employees.some(emp => emp.name?.trim().toLowerCase() === normalizedName);
+  const isDuplicateEmployeeId = (employee_id) => {
+    const normalizedId = employee_id.trim().toLowerCase();
+    return employees.some(emp => emp.employee_id?.trim().toLowerCase() === normalizedId);
   };
 
   const validateAddForm = () => {
     const errs = {};
-    if (!newEmployee.name.trim()) {
-      errs.name = 'Name is required';
-    } else if (isDuplicateEmployeeName(newEmployee.name)) {
-      errs.name = 'An employee with this name already exists';
+    if (!newEmployee.first_name.trim()) {
+      errs.first_name = 'First Name is required';
+    }
+    if (!newEmployee.last_name.trim()) {
+      errs.last_name = 'Last Name is required';
+    }
+    if (!newEmployee.employee_id.trim()) {
+      errs.employee_id = 'Employee ID is required';
+    } else if (isDuplicateEmployeeId(newEmployee.employee_id)) {
+      errs.employee_id = 'An employee with this ID already exists';
     }
     if (!newEmployee.email.trim()) {
       errs.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmployee.email)) {
       errs.email = 'Invalid email format';
     }
-    if (!newEmployee.role.trim()) errs.role = 'Role is required';
+    if (!newEmployee.role.trim()) errs.role = 'Designation is required';
     if (!newEmployee.department_id) errs.department = 'Department is required';
     return errs;
   };
@@ -276,8 +296,8 @@ setCurrentCompany(companyData);
     setShowAddModal(false);
     setTouchedFields({});
     setNewEmployee({
-      name: '', email: '', role: '', department_id: '',
-      status: 'Active', phone: '', location: '',
+      first_name: '', last_name: '', employee_id: '', email: '', role: '', department_id: '',
+      status: 'Active', phone: '', location: '', avatar: '',
       joinDate: new Date().toISOString().split('T')[0]
     });
   };
@@ -422,6 +442,18 @@ setCurrentCompany(companyData);
                   ))}
                 </select>
               </div>
+              <div className="filter-select">
+                <Filter size={16} className="filter-icon" />
+                <select 
+                  value={selectedCompletion} 
+                  onChange={(e) => setSelectedCompletion(e.target.value)}
+                >
+                  <option value="All">All Profiles</option>
+                  <option value="Complete">Complete (100%)</option>
+                  <option value="Incomplete">Incomplete (&lt;100%)</option>
+                  <option value="Needs Attention">Needs Attention (&lt;80%)</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -437,14 +469,15 @@ setCurrentCompany(companyData);
                     Role <ArrowUpDown size={14} className="sort-icon" />
                   </th>
                   <th onClick={() => handleSort('department')} className="sortable">
-  Department
-</th>
-
-<th>
-  Company
-</th>
-
-<th onClick={() => handleSort('status')} className="sortable">
+                    Department <ArrowUpDown size={14} className="sort-icon" />
+                  </th>
+                  <th onClick={() => handleSort('completion_score')} className="sortable">
+                    Profile <ArrowUpDown size={14} className="sort-icon" />
+                  </th>
+                  <th>
+                    Company
+                  </th>
+                  <th onClick={() => handleSort('status')} className="sortable">
   Status
 </th>
                   <th>Actions</th>
@@ -468,8 +501,15 @@ setCurrentCompany(companyData);
                     </td>
                     <td>{emp.role}</td>
                     <td>{emp.department}</td>
-
-<td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '60px', height: '6px', background: 'var(--color-border)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${emp.completion_score || 0}%`, height: '100%', background: (emp.completion_score === 100) ? 'var(--color-success)' : ((emp.completion_score || 0) < 80 ? 'var(--color-error)' : 'var(--color-warning)') }} />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>{emp.completion_score || 0}%</span>
+                      </div>
+                    </td>
+                    <td>
   <span className="company-tag">
     {emp.companyName || currentCompany?.name}
   </span>
@@ -507,13 +547,14 @@ setCurrentCompany(companyData);
                       </td>
                       <td><div className="skeleton skeleton-text" style={{ width: '100px' }}></div></td>
                       <td><div className="skeleton skeleton-text" style={{ width: '100px' }}></div></td>
+                      <td><div className="skeleton skeleton-text" style={{ width: '80px' }}></div></td>
                       <td><div className="skeleton skeleton-text" style={{ width: '80px', borderRadius: '12px' }}></div></td>
                       <td><div className="skeleton skeleton-icon"></div></td>
                     </tr>
                   ))
                 ) : sortedEmployees.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="empty-state">
+                    <td colSpan="7" className="empty-state">
                       No employees found matching your criteria.
                     </td>
                   </tr>
@@ -708,21 +749,31 @@ setCurrentCompany(companyData);
             </div>
             <form onSubmit={handleAddSubmit} className="add-employee-form">
               <div className="form-group">
-                <label>Name</label>
-                <input type="text" required value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} onBlur={() => handleBlur('name')} />
-                {touchedFields.name && addErrors.name && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.name}</span>}
+                <label>Employee ID</label>
+                <input type="text" required value={newEmployee.employee_id} onChange={e => setNewEmployee({...newEmployee, employee_id: e.target.value})} onBlur={() => handleBlur('employee_id')} />
+                {touchedFields.employee_id && addErrors.employee_id && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.employee_id}</span>}
               </div>
               <div className="form-group">
+                <label>First Name</label>
+                <input type="text" required value={newEmployee.first_name} onChange={e => setNewEmployee({...newEmployee, first_name: e.target.value})} onBlur={() => handleBlur('first_name')} />
+                {touchedFields.first_name && addErrors.first_name && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.first_name}</span>}
+              </div>
+              <div className="form-group">
+                <label>Last Name</label>
+                <input type="text" required value={newEmployee.last_name} onChange={e => setNewEmployee({...newEmployee, last_name: e.target.value})} onBlur={() => handleBlur('last_name')} />
+                {touchedFields.last_name && addErrors.last_name && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.last_name}</span>}
+              </div>
+              <div className="form-group full-width">
                 <label>Email</label>
                 <input type="email" required value={newEmployee.email} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} onBlur={() => handleBlur('email')} />
                 {touchedFields.email && addErrors.email && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.email}</span>}
               </div>
               <div className="form-group">
-                <label>Role</label>
+                <label>Designation</label>
                 <input type="text" required value={newEmployee.role} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} onBlur={() => handleBlur('role')} />
                 {touchedFields.role && addErrors.role && <span className="error-text" style={{color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'block'}}>{addErrors.role}</span>}
               </div>
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>Department</label>
                 <select required value={newEmployee.department_id} onChange={e => setNewEmployee({...newEmployee, department_id: e.target.value})} onBlur={() => handleBlur('department')}>
                   <option value="">Select Department</option>
@@ -736,9 +787,13 @@ setCurrentCompany(companyData);
                 <label>Phone</label>
                 <input type="text" value={newEmployee.phone} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} />
               </div>
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>Location</label>
                 <input type="text" value={newEmployee.location} onChange={e => setNewEmployee({...newEmployee, location: e.target.value})} />
+              </div>
+              <div className="form-group full-width">
+                <label>Profile Picture URL</label>
+                <input type="text" placeholder="https://example.com/avatar.png" value={newEmployee.avatar} onChange={e => setNewEmployee({...newEmployee, avatar: e.target.value})} />
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn-outline-primary" onClick={handleCloseAddModal}>Cancel</button>
@@ -760,18 +815,26 @@ setCurrentCompany(companyData);
             </div>
             <form onSubmit={handleEditSubmit} className="add-employee-form">
               <div className="form-group">
-                <label>Name</label>
-                <input type="text" required value={editEmployee.name || ''} onChange={e => setEditEmployee({...editEmployee, name: e.target.value})} />
+                <label>Employee ID</label>
+                <input type="text" required value={editEmployee.employee_id || ''} onChange={e => setEditEmployee({...editEmployee, employee_id: e.target.value})} />
               </div>
               <div className="form-group">
+                <label>First Name</label>
+                <input type="text" required value={editEmployee.first_name || ''} onChange={e => setEditEmployee({...editEmployee, first_name: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Last Name</label>
+                <input type="text" required value={editEmployee.last_name || ''} onChange={e => setEditEmployee({...editEmployee, last_name: e.target.value})} />
+              </div>
+              <div className="form-group full-width">
                 <label>Email</label>
                 <input type="email" required value={editEmployee.email || ''} onChange={e => setEditEmployee({...editEmployee, email: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Role</label>
+                <label>Designation</label>
                 <input type="text" required value={editEmployee.role || ''} onChange={e => setEditEmployee({...editEmployee, role: e.target.value})} />
               </div>
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>Department</label>
                 <select required value={editEmployee.department_id || ''} onChange={e => setEditEmployee({...editEmployee, department_id: e.target.value})}>
                   <option value="">Select Department</option>
@@ -795,6 +858,10 @@ setCurrentCompany(companyData);
               <div className="form-group">
                 <label>Location</label>
                 <input type="text" value={editEmployee.location || ''} onChange={e => setEditEmployee({...editEmployee, location: e.target.value})} />
+              </div>
+              <div className="form-group full-width">
+                <label>Profile Picture URL</label>
+                <input type="text" placeholder="https://example.com/avatar.png" value={editEmployee.avatar || ''} onChange={e => setEditEmployee({...editEmployee, avatar: e.target.value})} />
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn-outline-primary" onClick={() => setShowEditModal(false)}>Cancel</button>
@@ -855,7 +922,7 @@ setCurrentCompany(companyData);
                   ))}
                 </select>
               </div>
-              <div className="form-group">
+              <div className="form-group full-width">
                 <label>Reason for Transfer (Optional)</label>
                 <textarea 
                   value={transferData.reason} 

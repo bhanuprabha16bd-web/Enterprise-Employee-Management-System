@@ -16,13 +16,16 @@ for comp in companies:
     for i, u in enumerate(data):
         email = f"{comp_id}_{u['email']}"
         try:
+            first_name = u['name'].split()[0]
+            last_name = " ".join(u['name'].split()[1:]) if len(u['name'].split()) > 1 else ""
+            emp_id = f"EMP{comp_id}{i:03d}"
             c.execute('''INSERT INTO employees 
-                         (name, email, role, company_id, status, phone, location, joinDate) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', 
-                      (u['name'], email, roles[i%len(roles)], comp_id, statuses[i%len(statuses)], u.get('phone',''), u.get('address',{}).get('city',''), '2023-01-01'))
+                         (employee_id, first_name, last_name, email, role, company_id, status, phone, location, joinDate) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                      (emp_id, first_name, last_name, email, roles[i%len(roles)], comp_id, statuses[i%len(statuses)], u.get('phone',''), u.get('address',{}).get('city',''), '2023-01-01'))
             count += 1
         except Exception as e:
-            pass
+            print(f"Error inserting: {e}")
 
 conn.commit()
 print(f'Inserted {count} employees.')

@@ -36,6 +36,7 @@
 .btn-primary {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   background-color: var(--accent, #6366f1);
   color: white;
@@ -44,6 +45,9 @@
   padding: 10px 20px;
   font-weight: 500;
   font-size: 14px;
+  line-height: 1.2;
+  min-height: 40px;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
@@ -58,6 +62,7 @@
 .btn-outline-primary {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   background-color: transparent;
   color: var(--accent, #6366f1);
@@ -66,6 +71,9 @@
   padding: 10px 20px;
   font-weight: 500;
   font-size: 14px;
+  line-height: 1.2;
+  min-height: 40px;
+  white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -788,6 +796,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 24px;
   z-index: 1000;
   animation: fadeIn 0.2s ease-out;
 }
@@ -796,16 +805,23 @@
   background: var(--bg, #fff);
   border-radius: 12px;
   width: 100%;
-  max-width: 500px;
-  padding: 24px;
+  max-width: 640px;
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  padding: 0;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
@@ -815,9 +831,16 @@
 }
 
 .add-employee-form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.add-employee-form .full-width {
+  grid-column: 1 / -1;
 }
 
 .form-group {
@@ -834,11 +857,14 @@
 
 .form-group input,
 .form-group select {
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px 14px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 8px;
   font-size: 14px;
   color: var(--text-h, #1e293b);
+  background: var(--bg, #fff);
 }
 
 .form-group input:focus,
@@ -849,8 +875,59 @@
 }
 
 .modal-actions {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 12px;
-  margin-top: 10px;
+  margin-top: 4px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg, #fff);
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border, #e2e8f0);
+  z-index: 10;
+}
+
+.modal-actions .btn-primary,
+.modal-actions .btn-outline-primary {
+  min-width: 132px;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    align-items: stretch;
+  }
+
+  .page-header .btn-primary {
+    width: 100%;
+  }
+
+  .modal-overlay {
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 24px);
+  }
+
+  .modal-header {
+    padding: 16px;
+  }
+
+  .add-employee-form {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .modal-actions .btn-primary,
+  .modal-actions .btn-outline-primary {
+    width: 100%;
+  }
 }

@@ -10,6 +10,7 @@ from app.models.user_db import User
 
 from app.models.company_db import Company
 
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 db = SessionLocal()
