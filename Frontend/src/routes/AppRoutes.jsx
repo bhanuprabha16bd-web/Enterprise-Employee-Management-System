@@ -16,6 +16,7 @@ import Members from '../pages/Members/Members';
 import ActivityTracking from '../pages/ActivityTracking/ActivityTracking';
 import DataExport from '../pages/DataExport/DataExport';
 import ReinstatementRequests from '../pages/ReinstatementRequests/ReinstatementRequests';
+import HolidayCalendar from '../pages/Holidays/HolidayCalendar';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 /**
@@ -60,6 +61,9 @@ const AppRoutes = () => {
           </Route>
           <Route path="reinstatement-requests" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<ReinstatementRequests />} />
+          </Route>
+          <Route path="holidays" element={<ProtectedRoute />}>
+            <Route index element={<HolidayCalendar />} />
           </Route>
           <Route path="settings" element={<ProtectedRoute />}>
             <Route index element={<Settings />} />

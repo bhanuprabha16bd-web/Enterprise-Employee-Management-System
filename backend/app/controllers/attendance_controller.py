@@ -62,8 +62,16 @@ def check_out(db: Session, current_user: user_db.User):
         check_in_time = check_in_time.replace(tzinfo=timezone.utc)
 
     log.check_out_time = check_out_time
-    diff = check_out_time - check_in_time
-    log.total_hours = round(diff.total_seconds() / 3600, 2)
+    
+    # Check if today is a holiday. If so, working hours should not be calculated.
+    from app.controllers.holiday_controller import get_holiday_today
+    holiday = get_holiday_today(db, current_user.company_id)
+    
+    if holiday:
+        log.total_hours = 0
+    else:
+        diff = check_out_time - check_in_time
+        log.total_hours = round(diff.total_seconds() / 3600, 2)
     
     db.commit()
     db.refresh(log)
@@ -104,10 +112,10 @@ def get_all_attendance(db: Session, company_id: int):
     Retrieve all attendance logs for a given company.
     Includes related user, employee, and department information.
     """
-    # Use outerjoin for both employee and department to avoid errors if they are null
+    # Use outerjoin for all relations so deleted users' logs are still retained
     logs = (
         db.query(attendance_log_db.AttendanceLog, user_db.User, employee_db.Employee, department_db.Department)
-        .join(user_db.User, user_db.User.id == attendance_log_db.AttendanceLog.user_id)
+        .outerjoin(user_db.User, user_db.User.id == attendance_log_db.AttendanceLog.user_id)
         .outerjoin(employee_db.Employee, employee_db.Employee.email == user_db.User.email)
         .outerjoin(department_db.Department, department_db.Department.id == employee_db.Employee.department_id)
         .filter(attendance_log_db.AttendanceLog.company_id == company_id)
@@ -127,7 +135,7 @@ def get_all_attendance(db: Session, company_id: int):
             "total_hours": log.total_hours,
             "status": log.status,
             "created_at": log.created_at,
-            "user_name": user.name,
+            "user_name": emp.name if emp else (user.name if user else "Deleted User"),
             "department": dept.name if dept else "Unassigned"
         }
         result.append(log_dict)

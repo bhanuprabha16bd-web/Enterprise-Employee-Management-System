@@ -47,7 +47,7 @@ def get_company_leaves(db: Session, company_id: int):
     """
     logs = (
         db.query(leave_request_db.LeaveRequest, user_db.User, employee_db.Employee, department_db.Department)
-        .join(user_db.User, user_db.User.id == leave_request_db.LeaveRequest.user_id)
+        .outerjoin(user_db.User, user_db.User.id == leave_request_db.LeaveRequest.user_id)
         .outerjoin(employee_db.Employee, employee_db.Employee.email == user_db.User.email)
         .outerjoin(department_db.Department, department_db.Department.id == employee_db.Employee.department_id)
         .filter(leave_request_db.LeaveRequest.company_id == company_id)
@@ -67,7 +67,7 @@ def get_company_leaves(db: Session, company_id: int):
             "reason": req.reason,
             "status": req.status,
             "created_at": req.created_at,
-            "user_name": user.name,
+            "user_name": emp.name if emp else (user.name if user else "Deleted User"),
             "department": dept.name if dept else "Unassigned"
         }
         result.append(req_dict)

@@ -17,3 +17,4 @@ class Company(Base):
 
     users = relationship("app.models.user_db.User", back_populates="company")
     employees = relationship("app.models.employee_db.Employee", back_populates="company")
+    holidays = relationship("app.models.holiday_db.Holiday", back_populates="company")

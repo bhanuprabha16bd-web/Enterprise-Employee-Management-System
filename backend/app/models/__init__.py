@@ -1,1 +1,1 @@
-from app.models import user_db, company_db, department_db, employee_db, role_request_db, audit_log_db, invitation_db, reactivation_request_db, department_transfer_db, notification_db
+from app.models import user_db, company_db, department_db, employee_db, role_request_db, audit_log_db, invitation_db, reactivation_request_db, department_transfer_db, notification_db, holiday_db

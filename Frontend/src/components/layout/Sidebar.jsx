@@ -47,6 +47,10 @@ const Sidebar = ({ isOpen }) => {
           <CalendarCheck size={20} />
           <span>Attendance & Leave</span>
         </NavLink>
+        <NavLink to="/app/holidays" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+          <CalendarCheck size={20} />
+          <span>Holidays</span>
+        </NavLink>
         {user?.role === 'Admin' && (
           <>
             <NavLink to="/app/departments" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>

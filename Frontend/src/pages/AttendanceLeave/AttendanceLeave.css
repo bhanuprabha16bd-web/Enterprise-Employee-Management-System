@@ -625,3 +625,10 @@
     align-self: stretch;
   }
 }
+
+.holiday-card-override .attendance-strip.public {
+  background-color: var(--color-success);
+  color: white;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
