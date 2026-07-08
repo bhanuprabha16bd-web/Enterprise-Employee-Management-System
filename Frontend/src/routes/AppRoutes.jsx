@@ -17,6 +17,8 @@ import ActivityTracking from '../pages/ActivityTracking/ActivityTracking';
 import DataExport from '../pages/DataExport/DataExport';
 import ReinstatementRequests from '../pages/ReinstatementRequests/ReinstatementRequests';
 import HolidayCalendar from '../pages/Holidays/HolidayCalendar';
+import LoginDevices from '../pages/LoginDevices/LoginDevices';
+import AdminDeviceMonitoring from '../pages/AdminDeviceMonitoring/AdminDeviceMonitoring';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 /**
@@ -67,6 +69,12 @@ const AppRoutes = () => {
           </Route>
           <Route path="settings" element={<ProtectedRoute />}>
             <Route index element={<Settings />} />
+          </Route>
+          <Route path="login-devices" element={<ProtectedRoute />}>
+            <Route index element={<LoginDevices />} />
+          </Route>
+          <Route path="device-monitoring" element={<ProtectedRoute allowedRoles={['Admin']} />}>
+            <Route index element={<AdminDeviceMonitoring />} />
           </Route>
         </Route>
       </Route>

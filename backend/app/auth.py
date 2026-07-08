@@ -74,9 +74,28 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         token_data = user_schema.TokenData(email=email)
     except jwt.PyJWTError:
         raise credentials_exception
+    
     user = db.query(user_db.User).filter(user_db.User.email == token_data.email).first()
     if user is None:
         raise credentials_exception
+        
+    session_token = payload.get("session_token")
+    if session_token:
+        from app.models.session_db import UserSession
+        from datetime import datetime, timezone
+        session = db.query(UserSession).filter(UserSession.session_token == session_token).first()
+        if not session or session.status != "Active":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session is invalid or has been revoked",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        # update last activity optionally if it's older than e.g. 5 mins
+        # but to avoid many DB writes on every request, we can just update it roughly
+        # For simplicity, we update it directly (we should ideally do this async or periodically)
+        session.last_activity = datetime.now(timezone.utc)
+        db.commit()
+
     return user
 
 def get_active_user(current_user: user_db.User = Depends(get_current_user)):

@@ -18,3 +18,7 @@ class AuditLog(Base):
     actor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    device_name = Column(String, nullable=True)
+    browser = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    session_identifier = Column(String, nullable=True)

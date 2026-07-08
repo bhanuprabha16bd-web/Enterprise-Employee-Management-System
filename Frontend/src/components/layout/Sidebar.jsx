@@ -8,7 +8,9 @@ import {
   CircleUserRound,
   Briefcase,
   ListChecks,
-  DownloadCloud
+  DownloadCloud,
+  MonitorSmartphone,
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -77,7 +79,17 @@ const Sidebar = ({ isOpen }) => {
               <DownloadCloud size={20} />
               <span>Data Export Center</span>
             </NavLink>
+            <NavLink to="/app/device-monitoring" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+              <ShieldCheck size={20} />
+              <span>Device Monitoring</span>
+            </NavLink>
           </>
+        )}
+        {user?.role !== 'Admin' && (
+          <NavLink to="/app/login-devices" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+            <MonitorSmartphone size={20} />
+            <span>Login Devices</span>
+          </NavLink>
         )}
         <NavLink to="/app/settings" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
           <Settings size={20} />

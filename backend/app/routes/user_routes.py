@@ -196,6 +196,11 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
         if hasattr(dt, 'isoformat'): return dt.isoformat()
         return str(dt)
 
+    # Create a session
+    from app.controllers.session_controller import create_session
+    device_name = request.headers.get("x-device-name", "Unknown Device")
+    session = create_session(db, user, ip_address, browser_info, device_name)
+
     access_token = create_access_token(data={
         "sub": user.email,
         "role": user.role,
@@ -204,14 +209,32 @@ def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestFor
         "company_id": user.company_id,
         "attendance_access": user.attendance_access,
         "created_at": format_date(user.created_at),
+        "session_token": session.session_token
     })
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")
-def logout(current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
+def logout(request: Request, current_user: user_db.User = Depends(get_current_user), db: Session = Depends(get_db)):
     """
     API Endpoint: Logs out the current user.
     """
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        import jwt
+        from app.auth import SECRET_KEY, ALGORITHM
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            session_token = payload.get("session_token")
+            if session_token:
+                from app.models.session_db import UserSession
+                session = db.query(UserSession).filter(UserSession.session_token == session_token).first()
+                if session:
+                    session.status = "Logged Out"
+                    db.commit()
+        except jwt.PyJWTError:
+            pass
+            
     return user_controller.logout_user(db, current_user)
 
 @router.post("/reset-password")

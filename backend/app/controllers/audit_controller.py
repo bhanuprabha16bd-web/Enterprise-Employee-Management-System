@@ -3,7 +3,7 @@ from app.models.audit_log_db import AuditLog
 from app.models import user_db
 
 
-def create_audit_log(db: Session, event_type: str, description: str, actor_id: int, company_id: int):
+def create_audit_log(db: Session, event_type: str, description: str, actor_id: int, company_id: int, device_name: str = None, browser: str = None, ip_address: str = None, session_identifier: str = None):
     """
     Creates a new audit log entry to track system events and actions performed by users.
     """
@@ -16,6 +16,10 @@ def create_audit_log(db: Session, event_type: str, description: str, actor_id: i
         description=description,
         actor_id=actor_id,
         company_id=company_id,
+        device_name=device_name,
+        browser=browser,
+        ip_address=ip_address,
+        session_identifier=session_identifier
     )
     db.add(audit_log)
     db.commit()
@@ -48,5 +52,9 @@ def get_audit_logs(db: Session, company_id: int):
             "actor_name": actor.name if actor else "Unknown",
             "company_id": log.company_id,
             "created_at": log.created_at,
+            "device_name": log.device_name,
+            "browser": log.browser,
+            "ip_address": log.ip_address,
+            "session_identifier": log.session_identifier,
         })
     return result
