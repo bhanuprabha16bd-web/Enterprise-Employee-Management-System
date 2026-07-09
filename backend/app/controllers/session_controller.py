@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from app.models.session_db import UserSession
 from app.models import user_db
 from app.controllers.audit_controller import create_audit_log
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 def create_session(db: Session, user: user_db.User, ip_address: str, browser: str, device_name: str = "Unknown Device"):
     session_token = str(uuid.uuid4())
@@ -34,6 +34,21 @@ def create_session(db: Session, user: user_db.User, ip_address: str, browser: st
     return new_session
 
 def get_user_sessions(db: Session, user_id: int):
+    expiry_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+    
+    expired_sessions = db.query(UserSession).filter(
+        UserSession.user_id == user_id,
+        UserSession.status == "Active",
+        UserSession.last_activity < expiry_threshold
+    ).all()
+    
+    for s in expired_sessions:
+        s.status = "Expired"
+        create_audit_log(db, "Session Expired", f"Session expired due to inactivity for user {s.user_id}", s.user_id, s.company_id, s.device_name, s.browser, s.ip_address, s.session_token)
+    
+    if expired_sessions:
+        db.commit()
+        
     return db.query(UserSession).filter(UserSession.user_id == user_id).order_by(UserSession.last_activity.desc()).all()
 
 def rename_trusted_device(db: Session, session_id: int, new_name: str, current_user: user_db.User):
@@ -78,6 +93,7 @@ def logout_session(db: Session, session_id: int, current_user: user_db.User):
         raise HTTPException(status_code=404, detail="Session not found")
     
     session.status = "Logged Out"
+    session.last_activity = datetime.now(timezone.utc)
     db.commit()
     
     create_audit_log(db, "User Logout", "Logged out from device", current_user.id, current_user.company_id, session.device_name, session.browser, session.ip_address, session.session_token)
@@ -98,6 +114,21 @@ def logout_all_sessions(db: Session, current_session_token: str, current_user: u
     return {"message": "Logged out of all other sessions"}
 
 def get_company_sessions(db: Session, company_id: int):
+    expiry_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+    
+    expired_sessions = db.query(UserSession).filter(
+        UserSession.company_id == company_id,
+        UserSession.status == "Active",
+        UserSession.last_activity < expiry_threshold
+    ).all()
+    
+    for s in expired_sessions:
+        s.status = "Expired"
+        create_audit_log(db, "Session Expired", f"Session expired due to inactivity for user {s.user_id}", s.user_id, s.company_id, s.device_name, s.browser, s.ip_address, s.session_token)
+    
+    if expired_sessions:
+        db.commit()
+
     sessions = db.query(UserSession).filter(UserSession.company_id == company_id).order_by(UserSession.last_activity.desc()).all()
     # attach user email/name for display
     for s in sessions:
@@ -114,6 +145,7 @@ def force_logout_session(db: Session, session_id: int, current_user: user_db.Use
         return {"message": "Session is already terminated"}
     
     session.status = "Revoked"
+    session.last_activity = datetime.now(timezone.utc)
     db.commit()
     
     create_audit_log(db, "Force Logout Initiated", f"Force logged out user {session.user_id}", current_user.id, current_user.company_id, session.device_name, session.browser, session.ip_address, session.session_token)
@@ -124,6 +156,7 @@ def revoke_sessions(db: Session, session_ids: list[int], current_user: user_db.U
     for session in sessions:
         if session.status == "Active":
             session.status = "Revoked"
+            session.last_activity = datetime.now(timezone.utc)
             create_audit_log(db, "Session Revoked", f"Session revoked for user {session.user_id}", current_user.id, current_user.company_id, session.device_name, session.browser, session.ip_address, session.session_token)
     db.commit()
     return {"message": "Sessions revoked successfully"}

@@ -16,10 +16,8 @@ const AdminDeviceMonitoring = () => {
       const response = await axios.get('http://localhost:8000/sessions/admin', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      // Show sessions as 'Active' in the UI until an admin explicitly
-      // forces a logout or revokes the session.
-      const sessionsWithActive = (response.data || []).map(s => ({ ...s, status: 'Active' }));
-      setSessions(sessionsWithActive);
+      const loadedSessions = response.data || [];
+      setSessions(loadedSessions);
     } catch (error) {
       toast.error('Failed to load company sessions');
     } finally {
@@ -62,7 +60,7 @@ const AdminDeviceMonitoring = () => {
   const handleAdminForceLogout = async (session) => {
     try {
       await forceLogoutDeviceSession(session.id);
-      updateSessionStatus(session.id, 'Logged Out');
+      updateSessionStatus(session.id, 'Revoked');
       toast.success('Session force logged out');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to force logout');
@@ -99,9 +97,13 @@ const AdminDeviceMonitoring = () => {
   };
 
   const filteredSessions = sessions.filter(s => {
-    const matchesSearch = (s.user_email || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (s.user_name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'All' || s.status === filterStatus;
+    const searchValue = searchTerm.toLowerCase();
+    const matchesSearch = (s.user_email || '').toLowerCase().includes(searchValue) ||
+                          (s.user_name || '').toLowerCase().includes(searchValue) ||
+                          (s.device_name || '').toLowerCase().includes(searchValue) ||
+                          (s.browser || '').toLowerCase().includes(searchValue);
+    const displayStatus = getDisplayStatus(s.status);
+    const matchesStatus = filterStatus === 'All' || displayStatus === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -140,6 +142,7 @@ const AdminDeviceMonitoring = () => {
           <option value="Active">Active</option>
           <option value="Logged Out">Logged Out</option>
           <option value="Revoked">Revoked</option>
+          <option value="Expired">Expired</option>
         </select>
       </div>
 
@@ -157,6 +160,7 @@ const AdminDeviceMonitoring = () => {
               <th>User</th>
               <th>Device & Browser</th>
               <th>IP Address</th>
+              <th>Login Time</th>
               <th>Last Activity</th>
               <th>Status</th>
               <th>Actions</th>
@@ -185,6 +189,7 @@ const AdminDeviceMonitoring = () => {
                   </div>
                 </td>
                 <td>{session.ip_address || 'N/A'}</td>
+                <td>{new Date(session.login_time).toLocaleString()}</td>
                 <td>{new Date(session.last_activity).toLocaleString()}</td>
                 <td>
                   <span className={`status-badge status-${getDisplayStatus(session.status).toLowerCase().replace(/[^a-z0-9]+/gi, '-')}`}>
@@ -211,7 +216,7 @@ const AdminDeviceMonitoring = () => {
             ))}
             {filteredSessions.length === 0 && (
               <tr>
-                <td colSpan="7" className="text-center py-4">No sessions found matching your criteria.</td>
+                <td colSpan="8" className="text-center py-4">No sessions found matching your criteria.</td>
               </tr>
             )}
           </tbody>

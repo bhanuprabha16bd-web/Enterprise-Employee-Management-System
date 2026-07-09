@@ -185,3 +185,31 @@
   border-color: var(--primary-color, #3b82f6);
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-logged-out {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.status-revoked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-expired {
+  background: #fef3c7;
+  color: #92400e;
+}
