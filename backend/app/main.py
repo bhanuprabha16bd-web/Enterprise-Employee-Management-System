@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 from app.database.config import engine, Base
-from app.models import user_db, department_db, employee_db, role_request_db, company_db, audit_log_db, invitation_db, reactivation_request_db, attendance_request_db, attendance_log_db, leave_request_db, department_transfer_db, notification_db, export_log_db, reinstatement_request_db, holiday_db, session_db
-from app.routes import user_routes, employee_routes, department_routes, company_routes, audit_routes, analytics_routes, attendance_routes, leave_routes, notification_routes, export_routes, holiday_routes, session_routes
+from app.models import user_db, department_db, employee_db, role_request_db, company_db, audit_log_db, invitation_db, reactivation_request_db, attendance_request_db, attendance_log_db, leave_request_db, department_transfer_db, notification_db, export_log_db, reinstatement_request_db, holiday_db, session_db, skills_certification_db
+from app.routes import user_routes, employee_routes, department_routes, company_routes, audit_routes, analytics_routes, attendance_routes, leave_routes, notification_routes, export_routes, holiday_routes, session_routes, skills_certification_routes
 
 
 def ensure_audit_log_table():
@@ -88,3 +88,4 @@ app.include_router(notification_routes.router)
 app.include_router(export_routes.router)
 app.include_router(holiday_routes.router)
 app.include_router(session_routes.router)
+app.include_router(skills_certification_routes.router)

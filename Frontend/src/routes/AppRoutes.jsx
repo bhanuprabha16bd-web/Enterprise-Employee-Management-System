@@ -19,6 +19,7 @@ import ReinstatementRequests from '../pages/ReinstatementRequests/ReinstatementR
 import HolidayCalendar from '../pages/Holidays/HolidayCalendar';
 import LoginDevices from '../pages/LoginDevices/LoginDevices';
 import AdminDeviceMonitoring from '../pages/AdminDeviceMonitoring/AdminDeviceMonitoring';
+import SkillsCertifications from '../pages/SkillsCertifications/SkillsCertifications';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 /**
@@ -40,6 +41,7 @@ const AppRoutes = () => {
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="employees" element={<Users />} />
+          <Route path="skills-certifications" element={<SkillsCertifications />} />
           <Route path="departments" element={<ProtectedRoute allowedRoles={['Admin']} />}>
             <Route index element={<Departments />} />
           </Route>

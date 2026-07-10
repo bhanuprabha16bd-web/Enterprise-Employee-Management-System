@@ -10,7 +10,8 @@ import {
   ListChecks,
   DownloadCloud,
   MonitorSmartphone,
-  ShieldCheck
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -48,6 +49,10 @@ const Sidebar = ({ isOpen }) => {
         <NavLink to="/app/attendance-leave" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
           <CalendarCheck size={20} />
           <span>Attendance & Leave</span>
+        </NavLink>
+        <NavLink to="/app/skills-certifications" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
+          <Sparkles size={20} />
+          <span>Skills & Certifications</span>
         </NavLink>
         <NavLink to="/app/holidays" className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}>
           <CalendarCheck size={20} />
